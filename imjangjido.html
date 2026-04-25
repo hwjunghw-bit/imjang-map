@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>임장 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f5f5f7; }
+
+  /* 헤더 */
+  header {
+    background: #1d1d1f;
+    color: #fff;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  header span { font-size: 13px; color: #86868b; }
+
+  /* 메인 레이아웃 */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* 지도 */
+  #map { flex: 1; cursor: pointer; }
+
+  /* 사이드바 */
+  .sidebar {
+    width: 300px;
+    background: #fff;
+    border-left: 1px solid #e5e5ea;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #e5e5ea;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar-header h2 { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+  .apt-count { font-size: 12px; color: #86868b; }
+  .apt-list { overflow-y: auto; flex: 1; }
+  .apt-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f2f2f7;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .apt-item:hover { background: #f5f5f7; }
+  .apt-item.active { background: #e8f4fd; }
+  .apt-name { font-size: 14px; font-weight: 600; color: #1d1d1f; margin-bottom: 3px; }
+  .apt-meta { font-size: 12px; color: #86868b; display: flex; gap: 8px; flex-wrap: wrap; }
+  .apt-stars { color: #ff9500; font-size: 12px; }
+  .apt-empty { padding: 40px 16px; text-align: center; color: #86868b; font-size: 13px; line-height: 1.6; }
+
+  /* 힌트 */
+  .map-hint {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 500;
+    pointer-events: none;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+
+  /* 모달 오버레이 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.show { display: flex; }
+
+  /* 모달 */
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 480px;
+    max-width: 94vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #e5e5ea;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: #1d1d1f; }
+  .modal-close {
+    width: 28px; height: 28px;
+    border: none; background: #e5e5ea;
+    border-radius: 50%; cursor: pointer;
+    font-size: 14px; color: #636366;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: #d1d1d6; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+  .modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #e5e5ea;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  /* 폼 */
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; font-weight: 600; color: #636366; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .form-row input[type="text"],
+  .form-row input[type="number"],
+  .form-row textarea {
+    width: 100%;
+    border: 1.5px solid #e5e5ea;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    color: #1d1d1f;
+  }
+  .form-row input:focus,
+  .form-row textarea:focus { border-color: #007aff; }
+  .form-row textarea { resize: vertical; min-height: 60px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* 별점 */
+  .star-rating { display: flex; gap: 4px; }
+  .star-rating input { display: none; }
+  .star-rating label {
+    font-size: 24px; cursor: pointer; color: #d1d1d6; transition: color 0.1s; line-height: 1;
+  }
+  .star-rating label:hover,
+  .star-rating label:hover ~ label,
+  .star-rating input:checked ~ label { color: #d1d1d6; }
+  .star-rating label:hover,
+  .star-rating input:checked + label,
+  .star-rating label.active { color: #ff9500; }
+
+  /* 슬라이더 */
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type="range"] {
+    flex: 1; accent-color: #007aff; height: 4px;
+  }
+  .slider-val { font-size: 14px; font-weight: 600; color: #007aff; min-width: 24px; text-align: right; }
+
+  /* 버튼 */
+  .btn { padding: 8px 18px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: #007aff; color: #fff; }
+  .btn-primary:hover { background: #0066d6; }
+  .btn-danger { background: #ff3b30; color: #fff; }
+  .btn-danger:hover { background: #d63029; }
+  .btn-secondary { background: #e5e5ea; color: #1d1d1f; }
+  .btn-secondary:hover { background: #d1d1d6; }
+
+  /* 섹션 구분 */
+  .form-section { font-size: 12px; font-weight: 700; color: #007aff; text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e5e5ea; }
+
+  /* 커스텀 마커 */
+  .custom-marker {
+    width: 32px; height: 40px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .marker-pin {
+    width: 28px; height: 28px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .marker-shadow {
+    width: 10px; height: 5px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 50%;
+    margin-top: 2px;
+  }
+
+  /* 팝업 커스텀 */
+  .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+  .leaflet-popup-content { margin: 14px 16px; min-width: 180px; }
+  .popup-name { font-size: 15px; font-weight: 700; color: #1d1d1f; margin-bottom: 6px; }
+  .popup-info { font-size: 13px; color: #636366; line-height: 1.7; }
+  .popup-stars { color: #ff9500; font-size: 13px; }
+  .popup-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .popup-btn { flex: 1; padding: 6px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .popup-btn-edit { background: #007aff; color: #fff; }
+  .popup-btn-del { background: #ff3b30; color: #fff; }
+
+  /* 시간대 버튼 */
+  .time-btn {
+    flex: 1; text-align: center;
+    padding: 7px 4px;
+    border: 1.5px solid #e5e5ea;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; color: #636366;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .time-btn:hover { border-color: #007aff; color: #007aff; }
+  .time-btn.selected { background: #007aff; border-color: #007aff; color: #fff; }
+
+  /* 반응형 */
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 임장 지도</h1>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span style="font-size:12px;color:#86868b">지도 클릭 → 아파트 추가</span>
+    <button id="btn-connect" onclick="connectDataFile()" style="padding:5px 12px;border:none;border-radius:6px;background:#007aff;color:#fff;font-size:12px;font-weight:600;cursor:pointer">🔗 Claude 연동</button>
+  </div>
+</header>
+
+<div class="main">
+  <div style="position:relative; flex:1; display:flex; flex-direction:column;">
+    <div id="map"></div>
+    <div class="map-hint" id="hint">📍 지도를 클릭해서 임장 아파트 추가</div>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>임장 목록</h2>
+      <span class="apt-count" id="apt-count">0곳</span>
+    </div>
+    <div class="apt-list" id="apt-list">
+      <div class="apt-empty">아직 기록된 아파트가 없어요.<br>지도를 클릭해서 추가해보세요!</div>
+    </div>
+  </div>
+</div>
+
+<!-- 추가/수정 모달 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">아파트 추가</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section">기본 정보</div>
+      <div class="form-row">
+        <label>단지명 *</label>
+        <input type="text" id="f-name" placeholder="예) 래미안 수원역" />
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>임장 날짜</label>
+          <input type="date" id="f-date" />
+        </div>
+        <div class="form-row">
+          <label>임장 시간대</label>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <label class="time-btn" id="tb-day">
+              <input type="radio" name="timeofday" value="낮" style="display:none"> ☀️ 낮
+            </label>
+            <label class="time-btn" id="tb-night">
+              <input type="radio" name="timeofday" value="밤" style="display:none"> 🌙 밤
+            </label>
+            <label class="time-btn" id="tb-both">
+              <input type="radio" name="timeofday" value="낮+밤" style="display:none"> 낮+밤
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>매매가 (만원)</label>
+          <input type="number" id="f-price" placeholder="예) 80000" />
+        </div>
+        <div class="form-row">
+          <label>전용면적 (㎡)</label>
+          <input type="number" id="f-area" placeholder="예) 84" step="0.01"/>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>전세가율 (%)</label>
+          <input type="number" id="f-jeonse" placeholder="예) 65" min="0" max="100"/>
+        </div>
+        <div class="form-row">
+          <label>역까지 도보 (분)</label>
+          <input type="number" id="f-subway" placeholder="예) 10" min="0"/>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>준공년도 <span id="built-age" style="color:#007aff;font-weight:700;"></span></label>
+          <input type="number" id="f-built" placeholder="예) 2015" min="1960" max="2030" oninput="updateBuiltAge()"/>
+        </div>
+        <div class="form-row">
+          <label>세대수</label>
+          <input type="number" id="f-units" placeholder="예) 1200" min="1"/>
+        </div>
+      </div>
+
+      <div class="form-section">평가</div>
+      <div class="form-row">
+        <label>종합 평점</label>
+        <div class="star-rating" id="star-rating">
+          <input type="radio" name="rating" id="s5" value="5"><label for="s5">★</label>
+          <input type="radio" name="rating" id="s4" value="4"><label for="s4">★</label>
+          <input type="radio" name="rating" id="s3" value="3"><label for="s3">★</label>
+          <input type="radio" name="rating" id="s2" value="2"><label for="s2">★</label>
+          <input type="radio" name="rating" id="s1" value="1"><label for="s1">★</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>주변 상권 수준</label>
+        <div class="slider-row">
+          <input type="range" id="f-commercial" min="1" max="5" value="3" oninput="updateSlider('commercial')">
+          <span class="slider-val" id="v-commercial">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>아파트 관리 수준</label>
+        <div class="slider-row">
+          <input type="range" id="f-manage" min="1" max="5" value="3" oninput="updateSlider('manage')">
+          <span class="slider-val" id="v-manage">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>학세권 수준</label>
+        <div class="slider-row">
+          <input type="range" id="f-school" min="1" max="5" value="3" oninput="updateSlider('school')">
+          <span class="slider-val" id="v-school">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>소음 수준 <span style="color:#86868b;font-weight:400">(1=조용 ~ 5=시끄러움)</span></label>
+        <div class="slider-row">
+          <input type="range" id="f-noise" min="1" max="5" value="3" oninput="updateSlider('noise')">
+          <span class="slider-val" id="v-noise">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>치안 수준</label>
+        <div class="slider-row">
+          <input type="range" id="f-safety" min="1" max="5" value="3" oninput="updateSlider('safety')">
+          <span class="slider-val" id="v-safety">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>동간 간격</label>
+        <div class="slider-row">
+          <input type="range" id="f-spacing" min="1" max="5" value="3" oninput="updateSlider('spacing')">
+          <span class="slider-val" id="v-spacing">3</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>조경 상태</label>
+        <div class="slider-row">
+          <input type="range" id="f-landscape" min="1" max="5" value="3" oninput="updateSlider('landscape')">
+          <span class="slider-val" id="v-landscape">3</span>
+        </div>
+      </div>
+
+      <div class="form-section">단지 환경</div>
+      <div class="form-row">
+        <label>언덕 여부</label>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <label class="time-btn" id="hill-none"><input type="radio" name="hill" value="없음" style="display:none">🟢 없음</label>
+          <label class="time-btn" id="hill-slight"><input type="radio" name="hill" value="약간" style="display:none">🟡 약간</label>
+          <label class="time-btn" id="hill-steep"><input type="radio" name="hill" value="심함" style="display:none">🔴 심함</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>진입로 넓이</label>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <label class="time-btn" id="road-narrow"><input type="radio" name="road" value="좁음" style="display:none">좁음</label>
+          <label class="time-btn" id="road-mid"><input type="radio" name="road" value="보통" style="display:none">보통</label>
+          <label class="time-btn" id="road-wide"><input type="radio" name="road" value="넓음" style="display:none">넓음</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>혐오시설</label>
+        <input type="text" id="f-nuisance" placeholder="예) 없음 / 300m 내 공장 있음" />
+      </div>
+
+      <div class="form-section">메모</div>
+      <div class="form-row">
+        <label>최근 호재</label>
+        <textarea id="f-news" placeholder="예) GTX-A 노선 인접, 인근 대형 쇼핑몰 입점 예정 등"></textarea>
+      </div>
+      <div class="form-row">
+        <label>메모</label>
+        <textarea id="f-memo" placeholder="임장 시 느낀 점, 특이사항 등 자유롭게"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-delete" onclick="deleteApt()" style="display:none; margin-right:auto;">삭제</button>
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveApt()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 초기화 ─────────────────────────────────────────────
+const map = L.map('map').setView([37.3, 127.1], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+// ── 데이터 저장소 ─────────────────────────────────────────
+// Claude가 데이터를 업데이트할 때는 "Claude 연동"으로 연결된 임장데이터.json을 직접 수정합니다.
+// 연동 버튼을 누르면 파일↔앱이 양방향으로 동기화됩니다.
+
+let apartments = [];
+let _fileHandle = null;
+
+(function initData() {
+  const stored = JSON.parse(localStorage.getItem('imjang_apts') || '[]');
+
+  // 이름 정규화 (공백·특수문자 제거, 소문자)
+  const norm = s => (s || '').toLowerCase().replace(/[\s_\-·]/g, '');
+
+  // 중복 제거: 이름이 같은 항목은 병합 (주관적 데이터는 처음 등장한 항목 우선, 객관적 데이터는 값 있는 것 우선)
+  const OBJ = ['price','area','units','jeonse','built','subway'];
+  const seen = new Map();
+  const merged = [];
+
+  stored.forEach(apt => {
+    const key = norm(apt.name);
+    if (seen.has(key)) {
+      const base = merged[seen.get(key)];
+      OBJ.forEach(f => {
+        if (apt[f] && apt[f] !== '' && apt[f] !== '0' && (!base[f] || base[f] === '' || base[f] === '0')) {
+          base[f] = apt[f];
+        }
+      });
+      if (!base.rating && apt.rating) base.rating = apt.rating;
+      if (!base.memo && apt.memo) base.memo = apt.memo;
+    } else {
+      seen.set(key, merged.length);
+      merged.push({ ...apt });
+    }
+  });
+
+  apartments = merged;
+  localStorage.setItem('imjang_apts', JSON.stringify(apartments));
+})();
+let markers = {};
+let currentLat = null, currentLng = null, editingId = null;
+
+// 힌트 숨기기
+map.on('click', () => { document.getElementById('hint').style.opacity = '0'; setTimeout(() => document.getElementById('hint').style.display='none', 400); });
+document.getElementById('hint').style.transition = 'opacity 0.4s';
+
+// ── 지도 클릭 → 추가 모달 ───────────────────────────────
+map.on('click', function(e) {
+  currentLat = e.latlng.lat;
+  currentLng = e.latlng.lng;
+  editingId = null;
+  openModal('추가');
+});
+
+// ── 마커 색상 ──────────────────────────────────────────
+function markerColor(apt) {
+  // 입지 점수가 있으면 우선 사용
+  if (apt.analysis && apt.analysis.combinedScore) {
+    const s = apt.analysis.combinedScore;
+    if (s >= 80) return '#34c759';
+    if (s >= 65) return '#007aff';
+    if (s >= 50) return '#ff9500';
+    if (s >= 35) return '#ff6b35';
+    return '#ff3b30';
+  }
+  // 없으면 평점 기반
+  const r = apt.rating || 0;
+  if (r >= 5) return '#34c759';
+  if (r >= 4) return '#30d158';
+  if (r >= 3) return '#ff9500';
+  if (r >= 2) return '#ff6b35';
+  if (r >= 1) return '#ff3b30';
+  return '#86868b';
+}
+
+function markerLabel(apt) {
+  if (apt.analysis && apt.analysis.combinedScore) return apt.analysis.combinedScore;
+  return apt.rating || '?';
+}
+
+// ── 마커 생성 ──────────────────────────────────────────
+function createMarker(apt) {
+  const color = markerColor(apt);
+  const label = markerLabel(apt);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="custom-marker" style="pointer-events:none"><div class="marker-pin" style="background:${color}"><span style="transform:rotate(45deg);display:block;font-size:10px">${label}</span></div><div class="marker-shadow"></div></div>`,
+    iconSize: [32, 42],
+    iconAnchor: [16, 42],
+    popupAnchor: [0, -44]
+  });
+
+  const m = L.marker([apt.lat, apt.lng], { icon, draggable: true }).addTo(map);
+
+  // 드래그로 위치 조정 후 자동 저장
+  m.on('dragend', function(e) {
+    const pos = e.target.getLatLng();
+    apartments = apartments.map(a => a.id === apt.id ? { ...a, lat: pos.lat, lng: pos.lng } : a);
+    saveAll();
+  });
+  const stars = '★'.repeat(apt.rating || 0) + '☆'.repeat(5 - (apt.rating || 0));
+  const priceStr = apt.price ? `${Number(apt.price).toLocaleString()}만원` : '-';
+  const areaStr = apt.area ? `${apt.area}㎡` : '-';
+
+  // 입지 점수 배지
+  const scoreBadge = apt.analysis ? `
+    <div style="display:flex;gap:5px;margin:6px 0 2px;flex-wrap:wrap">
+      <span style="background:#667eea;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700">렘군 ${apt.analysis.lemgunScore}</span>
+      <span style="background:#f5576c;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700">갓서블 ${apt.analysis.godsibleScore}</span>
+      <span style="background:#1a1a2e;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700">종합 ${apt.analysis.combinedScore}</span>
+    </div>` : '';
+
+  m.bindPopup(`
+    <div class="popup-name">${apt.name}</div>
+    <div class="popup-info">
+      <div class="popup-stars">${stars}</div>
+      ${scoreBadge}
+      <div>💰 ${priceStr} · 📐 ${areaStr}</div>
+      ${apt.visitDate ? `<div>📅 ${apt.visitDate}${apt.timeOfDay ? ` (${apt.timeOfDay})` : ''}</div>` : ''}
+      ${apt.subway ? `<div>🚇 도보 ${apt.subway}분</div>` : ''}
+      ${apt.jeonse ? `<div>📊 전세가율 ${apt.jeonse}%</div>` : ''}
+      ${apt.built ? `<div>🏗️ ${apt.built}년 준공 (${new Date().getFullYear() - parseInt(apt.built) + 1}년차)${apt.units ? ` · ${Number(apt.units).toLocaleString()}세대` : ''}</div>` : (apt.units ? `<div>🏘️ ${Number(apt.units).toLocaleString()}세대</div>` : '')}
+      ${apt.analysis && apt.analysis.note ? `<div style="margin-top:4px;font-size:11px;color:#8892b0">${apt.analysis.note.slice(0,60)}…</div>` : ''}
+      ${apt.memo ? `<div style="margin-top:5px;color:#1d1d1f">📝 ${apt.memo.slice(0,40)}${apt.memo.length>40?'…':''}</div>` : ''}
+    </div>
+    <div class="popup-actions">
+      <button class="popup-btn popup-btn-edit" onclick="editApt('${apt.id}')">수정</button>
+      <button class="popup-btn popup-btn-del" onclick="deleteById('${apt.id}')">삭제</button>
+    </div>
+  `, { maxWidth: 260 });
+
+  m.on('click', () => {
+    highlightSidebarItem(apt.id);
+  });
+
+  markers[apt.id] = m;
+  return m;
+}
+
+// ── 사이드바 렌더 ──────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('apt-list');
+  document.getElementById('apt-count').textContent = `${apartments.length}곳`;
+  if (!apartments.length) {
+    list.innerHTML = '<div class="apt-empty">아직 기록된 아파트가 없어요.<br>지도를 클릭해서 추가해보세요!</div>';
+    return;
+  }
+  list.innerHTML = apartments.map(apt => {
+    const stars = '★'.repeat(apt.rating || 0) + '☆'.repeat(5 - (apt.rating || 0));
+    const priceStr = apt.price ? `${Number(apt.price).toLocaleString()}만원` : '';
+    const areaStr = apt.area ? `${apt.area}㎡` : '';
+    const scoreStr = apt.analysis ? `<span style="background:#1a1a2e;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:700">${apt.analysis.combinedScore}점</span>` : '';
+    return `<div class="apt-item" id="sidebar-${apt.id}" onclick="focusApt('${apt.id}')">
+      <div class="apt-name" style="display:flex;align-items:center;gap:6px">${apt.name} ${scoreStr}</div>
+      <div class="apt-meta">
+        <span class="apt-stars">${stars}</span>
+        ${priceStr ? `<span>${priceStr}</span>` : ''}
+        ${areaStr ? `<span>${areaStr}</span>` : ''}
+        ${apt.subway ? `<span>🚇${apt.subway}분</span>` : ''}
+        ${apt.jeonse ? `<span>전세가율 ${apt.jeonse}%</span>` : ''}
+        ${apt.visitDate ? `<span>📅${apt.visitDate}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function highlightSidebarItem(id) {
+  document.querySelectorAll('.apt-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`sidebar-${id}`);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+function focusApt(id) {
+  const apt = apartments.find(a => a.id === id);
+  if (!apt) return;
+  map.setView([apt.lat, apt.lng], 15, { animate: true });
+  if (markers[id]) markers[id].openPopup();
+  highlightSidebarItem(id);
+}
+
+// ── 모달 ───────────────────────────────────────────────
+function openModal(mode, apt) {
+  document.getElementById('modal-title').textContent = mode === '수정' ? '아파트 수정' : '아파트 추가';
+  document.getElementById('btn-delete').style.display = mode === '수정' ? 'block' : 'none';
+
+  if (apt) {
+    document.getElementById('f-name').value = apt.name || '';
+    document.getElementById('f-price').value = apt.price || '';
+    document.getElementById('f-area').value = apt.area || '';
+    document.getElementById('f-jeonse').value = apt.jeonse || '';
+    document.getElementById('f-subway').value = apt.subway || '';
+    document.getElementById('f-commercial').value = apt.commercial || 3;
+    document.getElementById('f-manage').value = apt.manage || 3;
+    document.getElementById('f-school').value = apt.school || 3;
+    document.getElementById('f-news').value = apt.news || '';
+    document.getElementById('f-memo').value = apt.memo || '';
+    document.getElementById('f-built').value = apt.built || '';
+    document.getElementById('f-units').value = apt.units || '';
+    document.getElementById('f-date').value = apt.visitDate || '';
+    document.getElementById('f-noise').value = apt.noise || 3;
+    document.getElementById('f-safety').value = apt.safety || 3;
+    document.getElementById('f-spacing').value = apt.spacing || 3;
+    document.getElementById('f-landscape').value = apt.landscape || 3;
+    document.getElementById('f-nuisance').value = apt.nuisance || '';
+    updateBuiltAge();
+    setTimeOfDay(apt.timeOfDay || '');
+    setToggleGroup('hill', apt.hill || '');
+    setToggleGroup('road', apt.road || '');
+    ['commercial','manage','school','noise','safety','spacing','landscape'].forEach(k => updateSlider(k));
+    const r = apt.rating || 0;
+    document.querySelectorAll('input[name="rating"]').forEach(inp => inp.checked = parseInt(inp.value) === r);
+  } else {
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-price').value = '';
+    document.getElementById('f-area').value = '';
+    document.getElementById('f-jeonse').value = '';
+    document.getElementById('f-subway').value = '';
+    document.getElementById('f-commercial').value = 3;
+    document.getElementById('f-manage').value = 3;
+    document.getElementById('f-school').value = 3;
+    document.getElementById('f-news').value = '';
+    document.getElementById('f-memo').value = '';
+    document.getElementById('f-built').value = '';
+    document.getElementById('f-units').value = '';
+    document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('built-age').textContent = '';
+    document.getElementById('f-noise').value = 3;
+    document.getElementById('f-safety').value = 3;
+    document.getElementById('f-spacing').value = 3;
+    document.getElementById('f-landscape').value = 3;
+    document.getElementById('f-nuisance').value = '';
+    setTimeOfDay('');
+    setToggleGroup('hill', '');
+    setToggleGroup('road', '');
+    ['commercial','manage','school','noise','safety','spacing','landscape'].forEach(k => updateSlider(k));
+    document.querySelectorAll('input[name="rating"]').forEach(inp => inp.checked = false);
+  }
+  document.getElementById('modal').classList.add('show');
+  setTimeout(() => document.getElementById('f-name').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  editingId = null;
+}
+
+function updateSlider(key) {
+  const val = document.getElementById(`f-${key}`).value;
+  document.getElementById(`v-${key}`).textContent = val;
+}
+
+// ── 저장 ───────────────────────────────────────────────
+function saveApt() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('단지명을 입력해주세요!'); return; }
+
+  const ratingEl = document.querySelector('input[name="rating"]:checked');
+  const apt = {
+    id: editingId || name.replace(/\s+/g, '_'),
+    lat: editingId ? apartments.find(a=>a.id===editingId).lat : currentLat,
+    lng: editingId ? apartments.find(a=>a.id===editingId).lng : currentLng,
+    name,
+    price: document.getElementById('f-price').value || '',
+    area: document.getElementById('f-area').value || '',
+    jeonse: document.getElementById('f-jeonse').value || '',
+    subway: document.getElementById('f-subway').value || '',
+    commercial: parseInt(document.getElementById('f-commercial').value),
+    manage: parseInt(document.getElementById('f-manage').value),
+    school: parseInt(document.getElementById('f-school').value),
+    news: document.getElementById('f-news').value.trim(),
+    memo: document.getElementById('f-memo').value.trim(),
+    rating: ratingEl ? parseInt(ratingEl.value) : 0,
+    built: document.getElementById('f-built').value || '',
+    units: document.getElementById('f-units').value || '',
+    visitDate: document.getElementById('f-date').value || '',
+    timeOfDay: document.querySelector('input[name="timeofday"]:checked')?.value || '',
+    noise: parseInt(document.getElementById('f-noise').value),
+    safety: parseInt(document.getElementById('f-safety').value),
+    spacing: parseInt(document.getElementById('f-spacing').value),
+    landscape: parseInt(document.getElementById('f-landscape').value),
+    hill: document.querySelector('input[name="hill"]:checked')?.value || '',
+    road: document.querySelector('input[name="road"]:checked')?.value || '',
+    nuisance: document.getElementById('f-nuisance').value.trim(),
+  };
+
+  if (editingId) {
+    apartments = apartments.map(a => a.id === editingId ? apt : a);
+    if (markers[editingId]) { markers[editingId].remove(); delete markers[editingId]; }
+  } else {
+    apartments.push(apt);
+  }
+
+  saveAll();
+  createMarker(apt);
+  renderSidebar();
+  closeModal();
+
+  // 마커로 이동
+  setTimeout(() => { if (markers[apt.id]) markers[apt.id].openPopup(); }, 100);
+}
+
+// ── 수정 ───────────────────────────────────────────────
+function editApt(id) {
+  const apt = apartments.find(a => a.id === id);
+  if (!apt) return;
+  editingId = id;
+  map.closePopup();
+  openModal('수정', apt);
+}
+
+// ── 삭제 ───────────────────────────────────────────────
+function deleteApt() {
+  if (!editingId) return;
+  deleteById(editingId);
+  closeModal();
+}
+
+function deleteById(id) {
+  if (!confirm('이 아파트 기록을 삭제할까요?')) return;
+  apartments = apartments.filter(a => a.id !== id);
+  if (markers[id]) { markers[id].remove(); delete markers[id]; }
+  saveAll();
+  renderSidebar();
+  map.closePopup();
+}
+
+// ── 통합 저장: localStorage + 외부 JSON 파일 ─────────────
+async function saveAll() {
+  localStorage.setItem('imjang_apts', JSON.stringify(apartments));
+  if (window._fileHandle) {
+    try {
+      const w = await window._fileHandle.createWritable();
+      await w.write(JSON.stringify(apartments, null, 2));
+      await w.close();
+    } catch(e) { console.warn('파일 저장 실패:', e); }
+  }
+}
+
+// ── 이름 정규화 (매칭용) ────────────────────────────────────
+const normName = s => (s || '').toLowerCase().replace(/[\s_\-·]/g, '');
+
+// ── 파일 연결: 양방향 (읽기 + 쓰기) ────────────────────────
+async function connectDataFile() {
+  if (!('showOpenFilePicker' in window)) {
+    alert('Chrome 브라우저에서만 지원됩니다.');
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON 데이터', accept: { 'application/json': ['.json'] } }]
+    });
+    window._fileHandle = handle;
+
+    // 파일에서 데이터 읽기
+    const file = await handle.getFile();
+    const text = (await file.text()).trim();
+
+    if (text && text !== '[]') {
+      // 파일 데이터가 있으면 → 파일을 소스로 사용, 로컬 주관적 데이터 보완
+      const fileData = JSON.parse(text);
+      const localMap = Object.fromEntries(apartments.map(a => [normName(a.name), a]));
+      const OBJ = ['price','area','units','jeonse','built','subway'];
+      const SUBJ = ['rating','memo','news','commercial','manage','school','noise','safety','spacing','landscape','hill','road','nuisance','visitDate','timeOfDay'];
+
+      const merged = fileData.map(fa => {
+        const local = localMap[normName(fa.name)];
+        if (!local) return fa;
+        const out = { ...fa };
+        // 로컬에만 있는 주관적 데이터 보완 (파일에 없는 경우만)
+        SUBJ.forEach(f => { if (!out[f] && local[f]) out[f] = local[f]; });
+        // 로컬이 더 최신 좌표를 갖고 있으면 반영
+        if (local.lat && local.lng) { out.lat = local.lat; out.lng = local.lng; }
+        return out;
+      });
+      // 로컬에만 있는 항목 추가 (파일에 없는 새 핀)
+      const fileNames = new Set(fileData.map(a => normName(a.name)));
+      apartments.filter(a => !fileNames.has(normName(a.name))).forEach(a => merged.push(a));
+      apartments = merged;
+    } else {
+      // 빈 파일이면 현재 로컬 데이터를 파일에 저장
+    }
+
+    await saveAll();
+    localStorage.setItem('imjang_apts', JSON.stringify(apartments));
+
+    // 마커 전체 재렌더
+    Object.values(markers).forEach(m => m.remove());
+    markers = {};
+    apartments.forEach(apt => createMarker(apt));
+    renderSidebar();
+
+    const btn = document.getElementById('btn-connect');
+    btn.textContent = '✅ 연동됨';
+    btn.style.background = '#34c759';
+    btn.onclick = disconnectFile;
+    showHintMsg(`파일 연결 완료 — ${apartments.length}개 아파트 로드됨`);
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('파일 연결 실패: ' + e.message);
+  }
+}
+
+function disconnectFile() {
+  window._fileHandle = null;
+  const btn = document.getElementById('btn-connect');
+  btn.textContent = '🔗 Claude 연동';
+  btn.style.background = '#007aff';
+  btn.onclick = connectDataFile;
+}
+
+function showHintMsg(msg) {
+  const h = document.getElementById('hint');
+  h.textContent = msg;
+  h.style.opacity = '1';
+  h.style.display = 'block';
+  setTimeout(() => { h.style.opacity = '0'; }, 3000);
+}
+
+// ── 초기 로드 ──────────────────────────────────────────
+apartments.forEach(apt => createMarker(apt));
+renderSidebar();
+
+// 범용 라디오 버튼 그룹 토글
+function setToggleGroup(name, val) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(inp => {
+    inp.checked = inp.value === val;
+    inp.parentElement.classList.toggle('selected', inp.value === val);
+  });
+}
+['hill-none','hill-slight','hill-steep','road-narrow','road-mid','road-wide'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('click', function() {
+    const inp = this.querySelector('input');
+    setToggleGroup(inp.name, inp.value);
+  });
+});
+
+// 시간대 버튼 토글
+function setTimeOfDay(val) {
+  ['day','night','both'].forEach(k => document.getElementById('tb-'+k).classList.remove('selected'));
+  document.querySelectorAll('input[name="timeofday"]').forEach(inp => inp.checked = false);
+  if (val === '낮') { document.getElementById('tb-day').classList.add('selected'); document.querySelector('#tb-day input').checked = true; }
+  else if (val === '밤') { document.getElementById('tb-night').classList.add('selected'); document.querySelector('#tb-night input').checked = true; }
+  else if (val === '낮+밤') { document.getElementById('tb-both').classList.add('selected'); document.querySelector('#tb-both input').checked = true; }
+}
+['tb-day','tb-night','tb-both'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function() {
+    const val = this.querySelector('input').value;
+    setTimeOfDay(val);
+  });
+});
+
+// 모달 열 때 오늘 날짜 기본 세팅
+const _origOpenModal = openModal;
+
+function updateBuiltAge() {
+  const val = parseInt(document.getElementById('f-built').value);
+  const el = document.getElementById('built-age');
+  if (val && val >= 1960 && val <= new Date().getFullYear()) {
+    el.textContent = `→ ${new Date().getFullYear() - val + 1}년차`;
+  } else {
+    el.textContent = '';
+  }
+}
+
+// 별점 CSS 수동 처리 (역방향 CSS 트릭)
+document.getElementById('star-rating').addEventListener('change', function(e) {
+  const val = parseInt(e.target.value);
+  document.querySelectorAll('#star-rating label').forEach((lbl, i) => {
+    lbl.style.color = (5 - i) <= val ? '#ff9500' : '#d1d1d6';
+  });
+});
+
+// 모달 바깥 클릭으로 닫기
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
