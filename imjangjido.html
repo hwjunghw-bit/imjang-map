@@ -243,6 +243,7 @@
   <div style="display:flex;gap:8px;align-items:center">
     <span style="font-size:12px;color:#86868b">지도 클릭 → 아파트 추가</span>
     <button id="btn-connect" onclick="connectDataFile()" style="padding:5px 12px;border:none;border-radius:6px;background:#007aff;color:#fff;font-size:12px;font-weight:600;cursor:pointer">🔗 Claude 연동</button>
+    <button onclick="exportData()" style="padding:5px 12px;border:none;border-radius:6px;background:#34c759;color:#fff;font-size:12px;font-weight:600;cursor:pointer">📥 내보내기</button>
   </div>
 </header>
 
@@ -776,6 +777,17 @@ async function saveAll() {
 const normName = s => (s || '').toLowerCase().replace(/[\s_\-·]/g, '');
 
 // ── 파일 연결: 양방향 (읽기 + 쓰기) ────────────────────────
+function exportData() {
+  const data = JSON.stringify(apartments, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '임장데이터.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function connectDataFile() {
   if (!('showOpenFilePicker' in window)) {
     alert('Chrome 브라우저에서만 지원됩니다.');
