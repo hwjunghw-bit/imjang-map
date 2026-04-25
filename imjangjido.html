@@ -864,8 +864,26 @@ function showHintMsg(msg) {
 }
 
 // ── 초기 로드 ──────────────────────────────────────────
-apartments.forEach(apt => createMarker(apt));
-renderSidebar();
+// GitHub Pages 등 http(s)로 열릴 때 자동으로 imjangdata.json 불러오기
+(async function autoLoad() {
+  if (location.protocol === 'file:') {
+    apartments.forEach(apt => createMarker(apt));
+    renderSidebar();
+    return;
+  }
+  try {
+    const res = await fetch('./imjangdata.json');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        apartments = data;
+        showToast('📡 데이터 자동 로드 완료 (' + data.length + '개)');
+      }
+    }
+  } catch(e) { /* 파일 없으면 그냥 빈 상태로 */ }
+  apartments.forEach(apt => createMarker(apt));
+  renderSidebar();
+})();
 
 // 범용 라디오 버튼 그룹 토글
 function setToggleGroup(name, val) {
