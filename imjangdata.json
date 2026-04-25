@@ -307,5 +307,47 @@
     "hill": "없음",
     "road": "넓음",
     "nuisance": ""
+  },
+  {
+    "id": "1777134669316",
+    "lat": 37.2623,
+    "lng": 127.0498,
+    "name": "매탄 현대힐스테이트",
+    "price": "49000",
+    "area": "84",
+    "jeonse": "51",
+    "subway": "18",
+    "built": "2006",
+    "units": "2328",
+    "commercial": 4,
+    "school": 3,
+    "rating": 0,
+    "memo": "",
+    "analysis": {
+      "lemgunScore": 39,
+      "godsibleScore": 45,
+      "combinedScore": 42,
+      "grade": "✕ D등급",
+      "analysisDate": "2026-04-25",
+      "scores": {
+        "jeonse": 2,
+        "supply": 5,
+        "value": 5,
+        "commute": 4,
+        "subway-l": 3,
+        "school-l": 4,
+        "subway-g": 3,
+        "brand": 3,
+        "units-g": 8,
+        "age": 3,
+        "flat": 8,
+        "green": 4,
+        "school-g": 4,
+        "commute-g": 4,
+        "commerce": 7,
+        "reconBonus": 0
+      },
+      "note": "렘군 39점 / 갓서블 45점"
+    }
   }
 ]
