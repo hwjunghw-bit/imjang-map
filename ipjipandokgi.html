@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아파트 입지 판독기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: #fff;
+  padding: 20px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+header h1 span { color: #e94560; }
+.header-sub { font-size: 13px; color: #8892b0; margin-top: 4px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+/* 아파트 입력 */
+.apt-input-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  margin-bottom: 24px;
+}
+.apt-input-card h2 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+.apt-input-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.apt-field { flex: 1; min-width: 140px; }
+.apt-field label { display: block; font-size: 12px; font-weight: 600; color: #636366; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
+.apt-field input, .apt-field select {
+  width: 100%; border: 1.5px solid #e5e5ea; border-radius: 8px;
+  padding: 9px 12px; font-size: 14px; font-family: inherit; outline: none;
+  transition: border-color 0.15s; color: #1d1d1f;
+}
+.apt-field input:focus, .apt-field select:focus { border-color: #e94560; }
+.btn-analyze {
+  background: linear-gradient(135deg, #e94560, #c0392b);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 10px 28px; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-analyze:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233,69,96,0.4); }
+
+/* 기준 패널 */
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media (max-width: 800px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.panel-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px; padding-bottom: 14px;
+  border-bottom: 2px solid #f0f2f5;
+}
+.panel-icon { font-size: 28px; }
+.panel-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
+.panel-sub { font-size: 12px; color: #8892b0; margin-top: 2px; }
+
+.criterion { margin-bottom: 14px; }
+.criterion-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.criterion-label { font-size: 13px; font-weight: 600; color: #1d1d1f; }
+.criterion-weight { font-size: 11px; color: #8892b0; background: #f5f5f7; padding: 2px 6px; border-radius: 4px; }
+.criterion-score-display { font-size: 18px; font-weight: 800; color: #e94560; }
+.criterion-desc { font-size: 11px; color: #8892b0; margin-bottom: 6px; line-height: 1.5; }
+
+/* 선택형 버튼 */
+.option-group { display: flex; gap: 5px; flex-wrap: wrap; }
+.opt-btn {
+  padding: 5px 10px; border: 1.5px solid #e5e5ea; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer; color: #636366;
+  background: #fff; transition: all 0.15s; white-space: nowrap;
+}
+.opt-btn:hover { border-color: #e94560; color: #e94560; }
+.opt-btn.selected { background: #e94560; border-color: #e94560; color: #fff; font-weight: 700; }
+
+/* 슬라이더 */
+.slider-wrap { display: flex; align-items: center; gap: 10px; }
+.slider-wrap input[type="range"] { flex: 1; accent-color: #e94560; }
+.slider-wrap .val { font-size: 14px; font-weight: 700; color: #e94560; min-width: 28px; text-align: right; }
+
+/* 숫자 입력 */
+.num-input { width: 100%; border: 1.5px solid #e5e5ea; border-radius: 7px; padding: 7px 10px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
+.num-input:focus { border-color: #e94560; }
+
+/* 결과 카드 */
+.results-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  margin-bottom: 24px;
+  display: none;
+}
+.results-card.show { display: block; }
+
+.result-header { text-align: center; margin-bottom: 28px; }
+.apt-name-result { font-size: 24px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+.result-summary { font-size: 14px; color: #636366; }
+
+.scores-row { display: flex; gap: 20px; justify-content: center; margin-bottom: 32px; flex-wrap: wrap; }
+.score-box {
+  text-align: center; flex: 1; min-width: 160px;
+  padding: 20px; border-radius: 14px;
+}
+.score-box.lemgun { background: linear-gradient(135deg, #667eea, #764ba2); }
+.score-box.godsible { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.score-box.combined { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.score-label { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+.score-num { font-size: 48px; font-weight: 900; color: #fff; line-height: 1; }
+.score-num-max { font-size: 16px; color: rgba(255,255,255,0.7); }
+.score-grade { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); margin-top: 4px; }
+
+.chart-area { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+.chart-wrap { flex: 1; min-width: 280px; max-width: 400px; margin: 0 auto; }
+.chart-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; text-align: center; }
+
+.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.detail-table th { background: #f5f5f7; color: #636366; font-weight: 700; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+.detail-table td { padding: 10px 14px; border-bottom: 1px solid #f5f5f7; color: #1d1d1f; }
+.detail-table tr:last-child td { border-bottom: none; }
+.score-bar-wrap { background: #f5f5f7; border-radius: 4px; height: 6px; min-width: 80px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+.score-bar { height: 6px; border-radius: 4px; background: linear-gradient(90deg, #e94560, #ff6b6b); transition: width 0.5s; }
+
+.verdict-box {
+  border-radius: 12px; padding: 18px 22px;
+  margin-top: 20px;
+  font-size: 14px; line-height: 1.8;
+}
+.verdict-box.great { background: #e8f5e9; border-left: 4px solid #4caf50; }
+.verdict-box.good { background: #e3f2fd; border-left: 4px solid #2196f3; }
+.verdict-box.avg { background: #fff8e1; border-left: 4px solid #ff9800; }
+.verdict-box.weak { background: #fce4ec; border-left: 4px solid #e91e63; }
+.verdict-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+
+/* 설명 패널 */
+.info-section {
+  background: #fff; border-radius: 16px; padding: 22px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px;
+}
+.info-section h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
+.analyst-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.analyst-card { background: #f8f9ff; border-radius: 12px; padding: 16px; }
+.analyst-name { font-size: 15px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+.analyst-philosophy { font-size: 12px; color: #636366; margin-bottom: 10px; line-height: 1.6; }
+.keyword-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.keyword { background: #e94560; color: #fff; border-radius: 12px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+.keyword.blue { background: #764ba2; }
+.keyword.teal { background: #0f3460; }
+
+/* 복수 비교 */
+.compare-btn {
+  background: #f5f5f7; color: #1d1d1f; border: none; border-radius: 8px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 16px;
+}
+.compare-btn:hover { background: #e5e5ea; }
+
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: #1a1a2e; color: #fff; padding: 10px 22px; border-radius: 20px;
+  font-size: 14px; font-weight: 600; z-index: 999; opacity: 0;
+  transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* 재건축 섹션 */
+.recon-section {
+  border: 2px dashed #e5e5ea; border-radius: 12px; padding: 16px; margin-top: 14px;
+}
+.recon-toggle { font-size: 13px; font-weight: 600; color: #636366; cursor: pointer; user-select: none; }
+.recon-toggle:hover { color: #e94560; }
+.recon-content { margin-top: 12px; display: none; }
+.recon-content.open { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏢 아파트 입지 <span>판독기</span></h1>
+    <div class="header-sub">푸릉·렘군·갓서블 기준 종합 분석</div>
+  </div>
+  <div style="font-size:12px;color:#8892b0;text-align:right">
+    <div>브역대신평공초 · 전세가율 · 타이밍</div>
+    <div style="margin-top:2px">아파트 이름 입력 후 분석 시작</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- 아파트 기본 정보 입력 -->
+  <div class="apt-input-card">
+    <h2>📍 분석할 아파트 정보 입력</h2>
+    <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button onclick="connectImjangFile()" id="btn-imjang-connect" style="padding:7px 16px;background:#0f3460;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📂 임장데이터.json 연동</button>
+      <span id="imjang-connect-status" style="font-size:12px;color:#8892b0">연동하면 임장지도의 아파트 목록을 불러옵니다</span>
+    </div>
+    <div id="imjang-apt-list-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#636366;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">📋 임장 목록에서 선택</div>
+      <div id="imjang-apt-list" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#636366;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">💾 Claude 분석 기록</div>
+      <div id="preset-wrap" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <div id="preset-note" style="font-size:12px;color:#8892b0;margin-top:6px;line-height:1.6"></div>
+    </div>
+    <div class="apt-input-row">
+      <div class="apt-field" style="flex:2;min-width:200px">
+        <label>단지명 *</label>
+        <input type="text" id="apt-name" placeholder="예) 수원역 해모로" />
+      </div>
+      <div class="apt-field">
+        <label>준공년도</label>
+        <input type="number" id="apt-built" placeholder="예) 2015" min="1960" max="2030" />
+      </div>
+      <div class="apt-field">
+        <label>총 세대수</label>
+        <input type="number" id="apt-units" placeholder="예) 863" min="1" />
+      </div>
+      <div class="apt-field">
+        <label>매매가 (만원)</label>
+        <input type="number" id="apt-price" placeholder="예) 67000" />
+      </div>
+      <div class="apt-field">
+        <label>전세가율 (%)</label>
+        <input type="number" id="apt-jeonse" placeholder="예) 62" min="0" max="100" />
+      </div>
+      <button class="btn-analyze" onclick="runAnalysis()">📊 입지 분석</button>
+    </div>
+  </div>
+
+  <!-- 입력 패널 (렘군 / 갓서블) -->
+  <div class="panels">
+
+    <!-- 렘군/푸릉 패널 -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon">📈</div>
+        <div>
+          <div class="panel-title">렘군 · 푸릉 기준</div>
+          <div class="panel-sub">타이밍 & 흐름 우선 · 데이터 기반 투자</div>
+        </div>
+      </div>
+
+      <!-- 전세가율 -->
+      <div class="criterion" id="cr-jeonse-rate">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">📊 전세가율</div>
+            <div class="criterion-desc">65~75% = 실수요 탄탄. 75~80% = 하락기 매수 기회. 50% 이하 = 실수요 취약.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 25%</div>
+            <div class="criterion-score-display" id="s-jeonse">-</div>
+          </div>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" id="r-jeonse" min="0" max="10" value="5" step="1" oninput="updateScore('jeonse',this.value)">
+          <span class="val" id="v-jeonse">5</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#8892b0;margin-top:3px">
+          <span>0~50%</span><span>50~60%</span><span>60~70%</span><span>70~80%</span><span>80%+</span>
+        </div>
+        <div class="option-group" style="margin-top:8px">
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 0, this)">50% 미만</button>
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 3, this)">50~60%</button>
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 5, this)">60~65%</button>
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 7, this)">65~75%</button>
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 9, this)">75~80%</button>
+          <button class="opt-btn" onclick="setSliderFromOption('jeonse', 6, this)">80% 초과</button>
+        </div>
+      </div>
+
+      <!-- 입주물량/타이밍 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🏗️ 입주물량 · 타이밍</div>
+            <div class="criterion-desc">향후 2~3년 공급 대비 수요. 입주물량 감소 전환 구간이 매수 타이밍.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 20%</div>
+            <div class="criterion-score-display" id="s-supply">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('supply', 9, this)">공급 부족</button>
+          <button class="opt-btn" onclick="setSliderFromOption('supply', 7, this)">균형</button>
+          <button class="opt-btn" onclick="setSliderFromOption('supply', 5, this)">약간 과잉</button>
+          <button class="opt-btn" onclick="setSliderFromOption('supply', 2, this)">공급 과잉</button>
+          <button class="opt-btn" onclick="setSliderFromOption('supply', 0, this)">심각 과잉</button>
+        </div>
+        <input type="hidden" id="r-supply" value="5" />
+      </div>
+
+      <!-- 평단가 저평가 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">💰 평단가 저평가 여부</div>
+            <div class="criterion-desc">동일 생활권 대비 평당가 비교. 지역 대장 아파트와의 갭 확인.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 20%</div>
+            <div class="criterion-score-display" id="s-value">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('value', 10, this)">매우 저평가</button>
+          <button class="opt-btn" onclick="setSliderFromOption('value', 7, this)">약간 저평가</button>
+          <button class="opt-btn" onclick="setSliderFromOption('value', 5, this)">적정</button>
+          <button class="opt-btn" onclick="setSliderFromOption('value', 3, this)">약간 고평가</button>
+          <button class="opt-btn" onclick="setSliderFromOption('value', 0, this)">고평가</button>
+        </div>
+        <input type="hidden" id="r-value" value="5" />
+      </div>
+
+      <!-- 직주근접 (렘군) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🚇 직주근접 (강남·여의도·판교)</div>
+            <div class="criterion-desc">주요 업무지구까지 대중교통 소요시간. 고소득 배후수요가 핵심.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 15%</div>
+            <div class="criterion-score-display" id="s-commute">-</div>
+          </div>
+        </div>
+        <div style="margin-bottom:6px">
+          <input type="number" class="num-input" id="r-commute-min" placeholder="가장 가까운 업무지구까지 분 (예: 35)" min="0" max="120" oninput="calcCommuteScore()" />
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setCommuteOpt(20, this)">~20분</button>
+          <button class="opt-btn" onclick="setCommuteOpt(30, this)">~30분</button>
+          <button class="opt-btn" onclick="setCommuteOpt(40, this)">~40분</button>
+          <button class="opt-btn" onclick="setCommuteOpt(50, this)">~50분</button>
+          <button class="opt-btn" onclick="setCommuteOpt(60, this)">~60분</button>
+          <button class="opt-btn" onclick="setCommuteOpt(90, this)">60분+</button>
+        </div>
+        <input type="hidden" id="r-commute" value="5" />
+      </div>
+
+      <!-- 역세권 (렘군) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🚉 역세권</div>
+            <div class="criterion-desc">도보 거리와 노선 등급. GTX·2·9호선 최상위.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 10%</div>
+            <div class="criterion-score-display" id="s-subway-l">-</div>
+          </div>
+        </div>
+        <div class="option-group" id="og-subway-dist">
+          <button class="opt-btn" data-group="subway-dist" onclick="updateSubwayScore(this,'dist',3)">도보 3분↓</button>
+          <button class="opt-btn" data-group="subway-dist" onclick="updateSubwayScore(this,'dist',5)">도보 5분</button>
+          <button class="opt-btn" data-group="subway-dist" onclick="updateSubwayScore(this,'dist',10)">도보 10분</button>
+          <button class="opt-btn" data-group="subway-dist" onclick="updateSubwayScore(this,'dist',15)">도보 15분</button>
+          <button class="opt-btn" data-group="subway-dist" onclick="updateSubwayScore(this,'dist',20)">도보 20분+</button>
+        </div>
+        <div class="option-group" style="margin-top:6px" id="og-subway-line">
+          <button class="opt-btn" data-group="subway-line" onclick="updateSubwayScore(this,'line','gtx')">GTX</button>
+          <button class="opt-btn" data-group="subway-line" onclick="updateSubwayScore(this,'line','top')">2·9호선</button>
+          <button class="opt-btn" data-group="subway-line" onclick="updateSubwayScore(this,'line','mid')">3·7호선급</button>
+          <button class="opt-btn" data-group="subway-line" onclick="updateSubwayScore(this,'line','low')">일반 노선</button>
+          <button class="opt-btn" data-group="subway-line" onclick="updateSubwayScore(this,'line','bus')">버스만</button>
+        </div>
+        <input type="hidden" id="r-subway-l" value="5" />
+        <input type="hidden" id="subway-dist-val" value="10" />
+        <input type="hidden" id="subway-line-val" value="mid" />
+      </div>
+
+      <!-- 학군 (렘군) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🎓 학군 · 학세권</div>
+            <div class="criterion-desc">중학교 학업성취도. 저평가된 학군 인접 지역을 공략.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 5%</div>
+            <div class="criterion-score-display" id="s-school-l">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('school-l', 10, this)">대치·목동·중계급</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-l', 8, this)">준학군지</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-l', 6, this)">평균 이상</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-l', 4, this)">평균</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-l', 1, this)">평균 이하</button>
+        </div>
+        <input type="hidden" id="r-school-l" value="5" />
+      </div>
+    </div>
+
+    <!-- 갓서블 패널 -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon">🗺️</div>
+        <div>
+          <div class="panel-title">갓서블 기준</div>
+          <div class="panel-sub">브역대신평공초 · 입지 체크리스트</div>
+        </div>
+      </div>
+
+      <!-- 역세권 (갓서블) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🚉 역(세권)</div>
+            <div class="criterion-desc">도보 5분 = 역세권. 3분 = 초역세권. 노선 등급도 반영.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 20%</div>
+            <div class="criterion-score-display" id="s-subway-g">-</div>
+          </div>
+        </div>
+        <div class="option-group" id="og-subway-dist-g">
+          <button class="opt-btn" data-group="subway-dist-g" onclick="updateSubwayScoreG(this,'dist',3)">도보 3분↓</button>
+          <button class="opt-btn" data-group="subway-dist-g" onclick="updateSubwayScoreG(this,'dist',5)">도보 5분</button>
+          <button class="opt-btn" data-group="subway-dist-g" onclick="updateSubwayScoreG(this,'dist',10)">도보 10분</button>
+          <button class="opt-btn" data-group="subway-dist-g" onclick="updateSubwayScoreG(this,'dist',15)">도보 15분</button>
+          <button class="opt-btn" data-group="subway-dist-g" onclick="updateSubwayScoreG(this,'dist',20)">도보 20분+</button>
+        </div>
+        <div class="option-group" style="margin-top:6px" id="og-subway-line-g">
+          <button class="opt-btn" data-group="subway-line-g" onclick="updateSubwayScoreG(this,'line','gtx')">GTX</button>
+          <button class="opt-btn" data-group="subway-line-g" onclick="updateSubwayScoreG(this,'line','top')">2·9호선</button>
+          <button class="opt-btn" data-group="subway-line-g" onclick="updateSubwayScoreG(this,'line','mid')">수인분당·신분당</button>
+          <button class="opt-btn" data-group="subway-line-g" onclick="updateSubwayScoreG(this,'line','low')">일반 노선</button>
+          <button class="opt-btn" data-group="subway-line-g" onclick="updateSubwayScoreG(this,'line','bus')">버스만</button>
+        </div>
+        <input type="hidden" id="r-subway-g" value="5" />
+        <input type="hidden" id="subway-dist-g-val" value="10" />
+        <input type="hidden" id="subway-line-g-val" value="mid" />
+      </div>
+
+      <!-- 브랜드 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🏆 브(랜드)</div>
+            <div class="criterion-desc">1군: 래미안·힐스테이트·자이·푸르지오·아이파크·롯데캐슬·e편한세상</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 15%</div>
+            <div class="criterion-score-display" id="s-brand">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('brand', 10, this)">1군 브랜드</button>
+          <button class="opt-btn" onclick="setSliderFromOption('brand', 6, this)">2군 브랜드</button>
+          <button class="opt-btn" onclick="setSliderFromOption('brand', 3, this)">중소건설사</button>
+          <button class="opt-btn" onclick="setSliderFromOption('brand', 0, this)">비브랜드</button>
+        </div>
+        <input type="hidden" id="r-brand" value="5" />
+      </div>
+
+      <!-- 대단지 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🏘️ 대(단지)</div>
+            <div class="criterion-desc">1,000세대 이상 = 대단지. 관리비·커뮤니티·환금성 우위.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 12%</div>
+            <div class="criterion-score-display" id="s-units-g">-</div>
+          </div>
+        </div>
+        <div id="units-auto-note" style="font-size:12px;color:#007aff;margin-bottom:6px;display:none">세대수 자동 적용됨</div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 10, this)">3,000세대+</button>
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 8, this)">2,000~3,000</button>
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 6, this)">1,000~2,000</button>
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 4, this)">500~1,000</button>
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 2, this)">300~500</button>
+          <button class="opt-btn" onclick="setSliderFromOption('units-g', 0, this)">300 미만</button>
+        </div>
+        <input type="hidden" id="r-units-g" value="5" />
+      </div>
+
+      <!-- 신축 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🆕 신(축) · 연식</div>
+            <div class="criterion-desc">5년 이내 신축. 30년 이상 구축은 재건축 기준으로 별도 평가.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 12%</div>
+            <div class="criterion-score-display" id="s-age">-</div>
+          </div>
+        </div>
+        <div id="age-auto-note" style="font-size:12px;color:#007aff;margin-bottom:6px;display:none">준공년도 자동 적용됨</div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('age', 10, this)">5년 이내</button>
+          <button class="opt-btn" onclick="setSliderFromOption('age', 8, this)">6~10년</button>
+          <button class="opt-btn" onclick="setSliderFromOption('age', 5, this)">11~15년</button>
+          <button class="opt-btn" onclick="setSliderFromOption('age', 3, this)">16~20년</button>
+          <button class="opt-btn" onclick="setSliderFromOption('age', 1, this)">21~30년</button>
+          <button class="opt-btn" onclick="setSliderFromOption('age', 0, this)">30년 초과</button>
+        </div>
+        <input type="hidden" id="r-age" value="5" />
+
+        <!-- 재건축 분석 -->
+        <div class="recon-section" id="recon-section" style="display:none">
+          <div class="recon-toggle" onclick="toggleRecon()">🔧 재건축 가능성 분석 펼치기 ▼</div>
+          <div class="recon-content" id="recon-content">
+            <div style="font-size:12px;color:#636366;margin-bottom:10px">갓서블 구축 5기준: 용적률·토지용도·대지지분·입지·사업추진단계</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#636366;display:block;margin-bottom:4px">용적률 (%)</label>
+                <input type="number" class="num-input" id="r-far" placeholder="예) 170" min="50" max="400" oninput="calcReconScore()" />
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#636366;display:block;margin-bottom:4px">대지지분 (평)</label>
+                <input type="number" class="num-input" id="r-land" placeholder="예) 16" min="0" oninput="calcReconScore()" />
+              </div>
+            </div>
+            <div style="margin-bottom:10px">
+              <label style="font-size:12px;font-weight:600;color:#636366;display:block;margin-bottom:4px">토지 용도지역</label>
+              <div class="option-group">
+                <button class="opt-btn" onclick="setReconOpt('zone','3종', this)">3종일반주거 (최대 250%)</button>
+                <button class="opt-btn" onclick="setReconOpt('zone','2종', this)">2종일반주거 (최대 200%)</button>
+                <button class="opt-btn" onclick="setReconOpt('zone','기타', this)">기타</button>
+              </div>
+              <input type="hidden" id="r-zone" value="" />
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#636366;display:block;margin-bottom:4px">사업 추진 단계</label>
+              <div class="option-group">
+                <button class="opt-btn" onclick="setReconOpt('stage','관리처분', this)">관리처분 인가</button>
+                <button class="opt-btn" onclick="setReconOpt('stage','사업시행', this)">사업시행 인가</button>
+                <button class="opt-btn" onclick="setReconOpt('stage','조합설립', this)">조합설립 완료</button>
+                <button class="opt-btn" onclick="setReconOpt('stage','안전진단', this)">안전진단 통과</button>
+                <button class="opt-btn" onclick="setReconOpt('stage','추진중', this)">추진 중</button>
+                <button class="opt-btn" onclick="setReconOpt('stage','미추진', this)">미추진</button>
+              </div>
+              <input type="hidden" id="r-stage" value="" />
+            </div>
+            <div id="recon-score-display" style="margin-top:10px;font-size:14px;font-weight:700;color:#e94560;display:none"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 평지 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🏔️ 평(지) · 경사도</div>
+            <div class="criterion-desc">호갱노노 경사 기능으로 확인. 급경사는 노인·유아 이동 불편.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 8%</div>
+            <div class="criterion-score-display" id="s-flat">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('flat', 10, this)">완전 평지</button>
+          <button class="opt-btn" onclick="setSliderFromOption('flat', 7, this)">약간 경사</button>
+          <button class="opt-btn" onclick="setSliderFromOption('flat', 3, this)">경사 있음</button>
+          <button class="opt-btn" onclick="setSliderFromOption('flat', 0, this)">급경사</button>
+        </div>
+        <input type="hidden" id="r-flat" value="5" />
+      </div>
+
+      <!-- 공원 + 초품아 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🌳 공(원) + 초(품아)</div>
+            <div class="criterion-desc">초등학교 도보 3분 이내 + 대형 공원·한강 인접 여부.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 10%</div>
+            <div class="criterion-score-display" id="s-green">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('green', 10, this)">단지내 초등+대형공원</button>
+          <button class="opt-btn" onclick="setSliderFromOption('green', 8, this)">초등 도보 3분+공원</button>
+          <button class="opt-btn" onclick="setSliderFromOption('green', 5, this)">초등 도보 5분</button>
+          <button class="opt-btn" onclick="setSliderFromOption('green', 2, this)">도로횡단 필요</button>
+          <button class="opt-btn" onclick="setSliderFromOption('green', 0, this)">초등 15분+</button>
+        </div>
+        <input type="hidden" id="r-green" value="5" />
+      </div>
+
+      <!-- 학군 (갓서블) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🎓 학군 · 학원가</div>
+            <div class="criterion-desc">중·고교 학업성취도 + 대치·목동·중계급 학원가 인접 여부.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 10%</div>
+            <div class="criterion-score-display" id="s-school-g">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('school-g', 10, this)">대치·목동·중계급</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-g', 8, this)">준학군지</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-g', 6, this)">평균 이상</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-g', 4, this)">평균</button>
+          <button class="opt-btn" onclick="setSliderFromOption('school-g', 1, this)">평균 이하</button>
+        </div>
+        <input type="hidden" id="r-school-g" value="5" />
+      </div>
+
+      <!-- 직주근접 (갓서블) -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">💼 직주근접</div>
+            <div class="criterion-desc">강남·여의도·마포 등 주요 업무지구 접근성.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 8%</div>
+            <div class="criterion-score-display" id="s-commute-g">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 10, this)">20분↓</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 8, this)">30분↓</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 6, this)">40분↓</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 4, this)">50분↓</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 2, this)">60분↓</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commute-g', 0, this)">60분+</button>
+        </div>
+        <input type="hidden" id="r-commute-g" value="5" />
+      </div>
+
+      <!-- 상권 -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <div>
+            <div class="criterion-label">🛒 상권 · 생활인프라</div>
+            <div class="criterion-desc">백화점·대형마트·스타벅스 밀집 여부.</div>
+          </div>
+          <div style="text-align:right">
+            <div class="criterion-weight">가중치 5%</div>
+            <div class="criterion-score-display" id="s-commerce">-</div>
+          </div>
+        </div>
+        <div class="option-group">
+          <button class="opt-btn" onclick="setSliderFromOption('commerce', 10, this)">백화점+마트 도보권</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commerce', 7, this)">마트 도보권</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commerce', 4, this)">편의점 수준</button>
+          <button class="opt-btn" onclick="setSliderFromOption('commerce', 1, this)">열악</button>
+        </div>
+        <input type="hidden" id="r-commerce" value="5" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 분석 결과 -->
+  <div class="results-card" id="results-card">
+    <div class="result-header">
+      <div class="apt-name-result" id="res-apt-name">-</div>
+      <div class="result-summary" id="res-summary">-</div>
+    </div>
+
+    <div class="scores-row">
+      <div class="score-box lemgun">
+        <div class="score-label">렘군·푸릉 점수</div>
+        <div><span class="score-num" id="res-lemgun-score">-</span><span class="score-num-max">/100</span></div>
+        <div class="score-grade" id="res-lemgun-grade">-</div>
+      </div>
+      <div class="score-box godsible">
+        <div class="score-label">갓서블 점수</div>
+        <div><span class="score-num" id="res-godsible-score">-</span><span class="score-num-max">/100</span></div>
+        <div class="score-grade" id="res-godsible-grade">-</div>
+      </div>
+      <div class="score-box combined">
+        <div class="score-label">종합 점수</div>
+        <div><span class="score-num" id="res-combined-score">-</span><span class="score-num-max">/100</span></div>
+        <div class="score-grade" id="res-combined-grade">-</div>
+      </div>
+    </div>
+
+    <div class="chart-area">
+      <div class="chart-wrap">
+        <div class="chart-title">렘군·푸릉 — 항목별 점수</div>
+        <canvas id="chart-lemgun"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">갓서블 — 브역대신평공초</div>
+        <canvas id="chart-godsible"></canvas>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:12px">📋 항목별 상세 점수</h3>
+    <table class="detail-table" id="detail-table"></table>
+
+    <div class="verdict-box" id="verdict-box">
+      <div class="verdict-title" id="verdict-title">-</div>
+      <div id="verdict-text">-</div>
+    </div>
+  </div>
+
+  <!-- 분석가 소개 -->
+  <div class="info-section">
+    <h3>📚 분석가별 투자 철학 & 핵심 기준</h3>
+    <div class="analyst-grid">
+      <div class="analyst-card">
+        <div class="analyst-name">📈 렘군 · 푸릉</div>
+        <div class="analyst-philosophy">
+          "타이밍이 맞아야 어디서든 오른다." 입지보다 전세가율·입주물량·매매지수를 먼저 보는 데이터 기반 투자. 알리알리 빅데이터 툴 활용. 초보자도 따라할 수 있는 단계별 프레임이 강점.
+        </div>
+        <div class="keyword-list">
+          <span class="keyword">전세가율 25%</span>
+          <span class="keyword">입주물량 20%</span>
+          <span class="keyword">평단가저평가 20%</span>
+          <span class="keyword">직주근접 15%</span>
+          <span class="keyword">역세권 10%</span>
+        </div>
+      </div>
+      <div class="analyst-card">
+        <div class="analyst-name">🗺️ 갓서블</div>
+        <div class="analyst-philosophy">
+          "브역대신평공초." 입지 절대 우선주의. 7가지 체크리스트로 아파트 등급화. 30년 구축은 용적률·대지지분·토지용도로 재건축 사업성 별도 평가. 호갱노노·아실 등 앱 8개 활용.
+        </div>
+        <div class="keyword-list">
+          <span class="keyword blue">브랜드 15%</span>
+          <span class="keyword blue">역세권 20%</span>
+          <span class="keyword blue">대단지 12%</span>
+          <span class="keyword blue">신축 12%</span>
+          <span class="keyword blue">초품아+공원 10%</span>
+          <span class="keyword blue">학군 10%</span>
+        </div>
+      </div>
+      <div class="analyst-card">
+        <div class="analyst-name">🔑 공통 핵심 포인트</div>
+        <div class="analyst-philosophy">
+          두 분석가 모두 강조하는 절대 기준들. 이것만 충족해도 하방경직성은 확보.
+        </div>
+        <div class="keyword-list">
+          <span class="keyword teal">직주근접 30분내</span>
+          <span class="keyword teal">1,000세대+</span>
+          <span class="keyword teal">실거주 수요</span>
+          <span class="keyword teal">1군 브랜드</span>
+          <span class="keyword teal">전세가율 60%+</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Claude 분석 프리셋 데이터 ──────────────────────────────
+const PRESETS = [
+  {
+    meta: { name: "수원역 센트럴 어반 시티", built: "2015", units: "1019", price: "56800", jeonse: "58" },
+    note: "시공사: (주)삼호 | 수원역(1호선+수인분당선) 도보 약 15분 | 세류동 평지 | 수원역 상권(AK플라자·롯데몰) 도보권",
+    scores: {
+      jeonse: 4, supply: 5, value: 5, commute: 4, "subway-l": 3, "school-l": 4,
+      "subway-g": 3, brand: 3, "units-g": 6, age: 5, flat: 8,
+      green: 4, "school-g": 4, "commute-g": 4, commerce: 7,
+      reconBonus: 0
+    },
+    subwayState: { dist: 15, line: "mid" },
+    subwayStateG: { dist: 15, line: "mid" }
+  }
+];
+
+function loadPreset(idx) {
+  const p = PRESETS[idx];
+  if (!p) return;
+
+  // 기본 정보
+  document.getElementById('apt-name').value = p.meta.name;
+  document.getElementById('apt-built').value = p.meta.built;
+  document.getElementById('apt-units').value = p.meta.units;
+  document.getElementById('apt-price').value = p.meta.price;
+  document.getElementById('apt-jeonse').value = p.meta.jeonse;
+
+  // 점수 반영
+  Object.assign(scores, p.scores);
+  Object.assign(subwayState, p.subwayState);
+  Object.assign(subwayStateG, p.subwayStateG);
+
+  // 표시 업데이트
+  Object.entries(p.scores).forEach(([k, v]) => {
+    const el = document.getElementById(`s-${k}`);
+    if (el) el.textContent = v;
+    const inp = document.getElementById(`r-${k}`);
+    if (inp) inp.value = v;
+  });
+  document.getElementById('age-auto-note').style.display = 'block';
+  document.getElementById('units-auto-note').style.display = 'block';
+
+  // 자동 분석 실행
+  setTimeout(() => {
+    runAnalysis();
+    const note = document.getElementById('preset-note');
+    if (note) note.textContent = '📌 ' + p.note;
+  }, 100);
+}
+
+function renderPresetButtons() {
+  const wrap = document.getElementById('preset-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = PRESETS.map((p, i) =>
+    `<button class="opt-btn selected" onclick="loadPreset(${i})" style="font-size:13px;padding:7px 14px">📂 ${p.meta.name}</button>`
+  ).join('');
+}
+
+// ─── 점수 상태 ────────────────────────────────────────────
+const scores = {
+  // 렘군/푸릉
+  jeonse: 5, supply: 5, value: 5, commute: 5, 'subway-l': 5, 'school-l': 5,
+  // 갓서블
+  'subway-g': 5, brand: 5, 'units-g': 5, age: 5, flat: 5,
+  green: 5, 'school-g': 5, 'commute-g': 5, commerce: 5,
+  // 재건축 보정
+  reconBonus: 0
+};
+
+const WEIGHTS_LEMGUN = {
+  jeonse: 0.25, supply: 0.20, value: 0.20,
+  commute: 0.15, 'subway-l': 0.10, 'school-l': 0.05, misc: 0.05
+};
+const WEIGHTS_GODSIBLE = {
+  'subway-g': 0.20, brand: 0.15, 'units-g': 0.12, age: 0.12,
+  green: 0.10, 'school-g': 0.10, 'commute-g': 0.08, flat: 0.08, commerce: 0.05
+};
+
+function updateScore(key, val) {
+  scores[key] = parseInt(val);
+  const el = document.getElementById(`s-${key}`);
+  if (el) el.textContent = val;
+  const vEl = document.getElementById(`v-${key}`);
+  if (vEl) vEl.textContent = val;
+}
+
+function setSliderFromOption(key, val, btn) {
+  scores[key] = val;
+  document.getElementById(`r-${key}`).value = val;
+  const sEl = document.getElementById(`s-${key}`);
+  if (sEl) sEl.textContent = val;
+  // highlight
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  // 30년 이상이면 재건축 섹션 표시
+  if (key === 'age' && val === 0) {
+    document.getElementById('recon-section').style.display = 'block';
+  } else if (key === 'age') {
+    document.getElementById('recon-section').style.display = 'none';
+  }
+}
+
+// 역세권 점수 계산 (렘군)
+let subwayState = { dist: 10, line: 'mid' };
+function updateSubwayScore(btn, type, val) {
+  subwayState[type] = val;
+  document.querySelectorAll(`[data-group="subway-${type}"]`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(`subway-${type}-val`).value = val;
+  scores['subway-l'] = calcSubwayScore(subwayState);
+  const el = document.getElementById('s-subway-l');
+  if (el) el.textContent = scores['subway-l'];
+}
+let subwayStateG = { dist: 10, line: 'mid' };
+function updateSubwayScoreG(btn, type, val) {
+  subwayStateG[type] = val;
+  document.querySelectorAll(`[data-group="subway-${type}-g"]`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(`subway-${type}-g-val`).value = val;
+  scores['subway-g'] = calcSubwayScore(subwayStateG);
+  const el = document.getElementById('s-subway-g');
+  if (el) el.textContent = scores['subway-g'];
+}
+function calcSubwayScore(state) {
+  const distScore = { 3:10, 5:8, 10:6, 15:3, 20:1 }[state.dist] ?? 1;
+  const lineBonus = { gtx:2, top:2, mid:1, low:0, bus:-2 }[state.line] ?? 0;
+  return Math.min(10, Math.max(0, Math.round((distScore + lineBonus) / 1.2)));
+}
+
+// 직주근접 점수 (렘군)
+function setCommuteOpt(min, btn) {
+  document.getElementById('r-commute-min').value = min;
+  document.querySelectorAll('#og-subway-dist + .option-group .opt-btn, .criterion .opt-btn').forEach(b => {});
+  btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  calcCommuteScore();
+}
+function calcCommuteScore() {
+  const min = parseInt(document.getElementById('r-commute-min').value) || 0;
+  let score = 0;
+  if (min <= 20) score = 10;
+  else if (min <= 30) score = 8;
+  else if (min <= 40) score = 6;
+  else if (min <= 50) score = 4;
+  else if (min <= 60) score = 2;
+  else score = 0;
+  scores['commute'] = score;
+  document.getElementById('r-commute').value = score;
+  document.getElementById('s-commute').textContent = score;
+}
+
+// 재건축 점수
+let reconData = { zone: '', stage: '' };
+function setReconOpt(type, val, btn) {
+  reconData[type] = val;
+  btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(`r-${type}`).value = val;
+  calcReconScore();
+}
+function toggleRecon() {
+  const c = document.getElementById('recon-content');
+  c.classList.toggle('open');
+  document.querySelector('.recon-toggle').textContent = c.classList.contains('open')
+    ? '🔧 재건축 가능성 분석 접기 ▲'
+    : '🔧 재건축 가능성 분석 펼치기 ▼';
+}
+function calcReconScore() {
+  const far = parseInt(document.getElementById('r-far').value) || 999;
+  const land = parseFloat(document.getElementById('r-land').value) || 0;
+  let bonus = 0;
+  if (far <= 150) bonus += 3;
+  else if (far <= 180) bonus += 2;
+  else if (far <= 200) bonus += 1;
+  if (land >= 18) bonus += 3;
+  else if (land >= 15) bonus += 2;
+  else if (land >= 12) bonus += 1;
+  if (reconData.zone === '3종') bonus += 2;
+  else if (reconData.zone === '2종') bonus += 1;
+  if (reconData.stage === '관리처분') bonus += 3;
+  else if (reconData.stage === '사업시행') bonus += 2;
+  else if (reconData.stage === '조합설립') bonus += 2;
+  else if (reconData.stage === '안전진단') bonus += 1;
+  scores.reconBonus = Math.min(5, bonus);
+  const disp = document.getElementById('recon-score-display');
+  disp.style.display = 'block';
+  disp.textContent = `재건축 보정 점수: +${scores.reconBonus}점 (연식 점수에 합산)`;
+}
+
+// 전세가율 자동 적용
+document.getElementById('apt-jeonse').addEventListener('input', function() {
+  const v = parseFloat(this.value);
+  if (!v) return;
+  let score;
+  if (v < 50) score = 0;
+  else if (v < 55) score = 2;
+  else if (v < 60) score = 3;
+  else if (v < 65) score = 5;
+  else if (v < 70) score = 7;
+  else if (v < 75) score = 10;
+  else if (v < 80) score = 9;
+  else score = 6;
+  scores.jeonse = score;
+  document.getElementById('r-jeonse').value = score;
+  document.getElementById('v-jeonse').textContent = score;
+  document.getElementById('s-jeonse').textContent = score;
+  document.querySelectorAll('#cr-jeonse-rate .opt-btn').forEach(b => b.classList.remove('selected'));
+});
+
+// 준공년도 자동 연식 점수
+document.getElementById('apt-built').addEventListener('input', function() {
+  const year = parseInt(this.value);
+  if (!year || year < 1960 || year > 2030) return;
+  const age = new Date().getFullYear() - year;
+  let score;
+  if (age <= 5) score = 10;
+  else if (age <= 10) score = 8;
+  else if (age <= 15) score = 5;
+  else if (age <= 20) score = 3;
+  else if (age <= 30) score = 1;
+  else score = 0;
+  scores.age = score;
+  document.getElementById('r-age').value = score;
+  document.getElementById('s-age').textContent = score;
+  document.getElementById('age-auto-note').style.display = 'block';
+  document.querySelectorAll('#r-age ~ .option-group .opt-btn').forEach(b => b.classList.remove('selected'));
+  if (age > 30) document.getElementById('recon-section').style.display = 'block';
+  else document.getElementById('recon-section').style.display = 'none';
+});
+
+// 세대수 자동
+document.getElementById('apt-units').addEventListener('input', function() {
+  const u = parseInt(this.value);
+  if (!u) return;
+  let score;
+  if (u >= 3000) score = 10;
+  else if (u >= 2000) score = 8;
+  else if (u >= 1000) score = 6;
+  else if (u >= 500) score = 4;
+  else if (u >= 300) score = 2;
+  else score = 0;
+  scores['units-g'] = score;
+  document.getElementById('r-units-g').value = score;
+  document.getElementById('s-units-g').textContent = score;
+  document.getElementById('units-auto-note').style.display = 'block';
+  document.querySelectorAll('#r-units-g ~ .option-group .opt-btn').forEach(b => b.classList.remove('selected'));
+});
+
+// ─── 분석 실행 ───────────────────────────────────────────
+let chartL = null, chartG = null;
+
+function runAnalysis() {
+  const name = document.getElementById('apt-name').value.trim();
+  if (!name) { showToast('단지명을 입력해주세요'); return; }
+
+  // 재건축 보정: age에 합산
+  const ageScore = Math.min(10, scores.age + scores.reconBonus);
+
+  // 렘군 점수 (misc = 상권+공원+직주근접 평균 5%)
+  const miscL = (scores.commerce + scores['school-g'] + scores.green) / 3;
+  const lemgunRaw = (
+    scores.jeonse * 0.25 +
+    scores.supply * 0.20 +
+    scores.value  * 0.20 +
+    scores.commute * 0.15 +
+    scores['subway-l'] * 0.10 +
+    scores['school-l'] * 0.05 +
+    miscL * 0.05
+  );
+  const lemgunScore = Math.round(lemgunRaw * 10);
+
+  // 갓서블 점수
+  const godsibleRaw = (
+    scores['subway-g'] * 0.20 +
+    scores.brand * 0.15 +
+    scores['units-g'] * 0.12 +
+    ageScore * 0.12 +
+    scores.green * 0.10 +
+    scores['school-g'] * 0.10 +
+    scores['commute-g'] * 0.08 +
+    scores.flat * 0.08 +
+    scores.commerce * 0.05
+  );
+  const godsibleScore = Math.round(godsibleRaw * 10);
+
+  const combinedScore = Math.round((lemgunScore + godsibleScore) / 2);
+
+  // 등급
+  const grade = s => s >= 85 ? '★★★ S등급' : s >= 75 ? '★★☆ A등급' : s >= 60 ? '★☆☆ B등급' : s >= 45 ? '△ C등급' : '✕ D등급';
+
+  // 결과 표시
+  document.getElementById('res-apt-name').textContent = name;
+
+  const built = document.getElementById('apt-built').value;
+  const units = document.getElementById('apt-units').value;
+  const price = document.getElementById('apt-price').value;
+  const jeonse = document.getElementById('apt-jeonse').value;
+
+  let summary = [];
+  if (built) summary.push(`${built}년 준공 (${new Date().getFullYear()-parseInt(built)}년차)`);
+  if (units) summary.push(`${Number(units).toLocaleString()}세대`);
+  if (price) summary.push(`매매가 ${Number(price).toLocaleString()}만원`);
+  if (jeonse) summary.push(`전세가율 ${jeonse}%`);
+  document.getElementById('res-summary').textContent = summary.join(' · ') || '기본 정보 미입력';
+
+  document.getElementById('res-lemgun-score').textContent = lemgunScore;
+  document.getElementById('res-lemgun-grade').textContent = grade(lemgunScore);
+  document.getElementById('res-godsible-score').textContent = godsibleScore;
+  document.getElementById('res-godsible-grade').textContent = grade(godsibleScore);
+  document.getElementById('res-combined-score').textContent = combinedScore;
+  document.getElementById('res-combined-grade').textContent = grade(combinedScore);
+
+  // 상세 테이블
+  const rows = [
+    ['구분', '항목', '점수', '가중점'],
+    ['렘군·푸릉', '전세가율', scores.jeonse, (scores.jeonse*0.25).toFixed(1)],
+    ['렘군·푸릉', '입주물량·타이밍', scores.supply, (scores.supply*0.20).toFixed(1)],
+    ['렘군·푸릉', '평단가 저평가', scores.value, (scores.value*0.20).toFixed(1)],
+    ['렘군·푸릉', '직주근접', scores.commute, (scores.commute*0.15).toFixed(1)],
+    ['렘군·푸릉', '역세권', scores['subway-l'], (scores['subway-l']*0.10).toFixed(1)],
+    ['렘군·푸릉', '학군', scores['school-l'], (scores['school-l']*0.05).toFixed(1)],
+    ['갓서블', '역세권 (브역대신평공초)', scores['subway-g'], (scores['subway-g']*0.20).toFixed(1)],
+    ['갓서블', '브랜드', scores.brand, (scores.brand*0.15).toFixed(1)],
+    ['갓서블', '대단지', scores['units-g'], (scores['units-g']*0.12).toFixed(1)],
+    ['갓서블', '신축·연식', ageScore, (ageScore*0.12).toFixed(1)],
+    ['갓서블', '초품아·공원', scores.green, (scores.green*0.10).toFixed(1)],
+    ['갓서블', '학군·학원가', scores['school-g'], (scores['school-g']*0.10).toFixed(1)],
+    ['갓서블', '직주근접', scores['commute-g'], (scores['commute-g']*0.08).toFixed(1)],
+    ['갓서블', '평지·경사도', scores.flat, (scores.flat*0.08).toFixed(1)],
+    ['갓서블', '상권·인프라', scores.commerce, (scores.commerce*0.05).toFixed(1)],
+  ];
+
+  const table = document.getElementById('detail-table');
+  table.innerHTML = rows.map((r, i) => {
+    if (i === 0) return `<tr>${r.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+    const pct = parseInt(r[2]) * 10;
+    const barColor = pct >= 70 ? '#4caf50' : pct >= 50 ? '#ff9800' : '#f44336';
+    return `<tr>
+      <td style="color:#8892b0;font-size:12px">${r[0]}</td>
+      <td>${r[1]}</td>
+      <td>
+        <span class="score-bar-wrap"><span class="score-bar" style="width:${pct}%;background:${barColor}"></span></span>
+        <strong>${r[2]}</strong>/10
+      </td>
+      <td style="font-weight:700;color:${parseFloat(r[3])>=5?'#4caf50':parseFloat(r[3])>=3?'#ff9800':'#f44336'}">${r[3]}점</td>
+    </tr>`;
+  }).join('');
+
+  // 레이더 차트 - 렘군
+  if (chartL) chartL.destroy();
+  chartL = new Chart(document.getElementById('chart-lemgun'), {
+    type: 'radar',
+    data: {
+      labels: ['전세가율', '입주물량', '저평가', '직주근접', '역세권', '학군'],
+      datasets: [{
+        label: name,
+        data: [scores.jeonse, scores.supply, scores.value, scores.commute, scores['subway-l'], scores['school-l']],
+        backgroundColor: 'rgba(102,126,234,0.2)',
+        borderColor: '#667eea',
+        borderWidth: 2,
+        pointBackgroundColor: '#667eea',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      scales: { r: { min: 0, max: 10, ticks: { stepSize: 2, font: {size:10} }, pointLabels: { font: {size:12} } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // 레이더 차트 - 갓서블
+  if (chartG) chartG.destroy();
+  chartG = new Chart(document.getElementById('chart-godsible'), {
+    type: 'radar',
+    data: {
+      labels: ['역세권', '브랜드', '대단지', '신축', '초품아', '학군', '직주', '평지', '상권'],
+      datasets: [{
+        label: name,
+        data: [scores['subway-g'], scores.brand, scores['units-g'], ageScore, scores.green, scores['school-g'], scores['commute-g'], scores.flat, scores.commerce],
+        backgroundColor: 'rgba(245,87,108,0.2)',
+        borderColor: '#f5576c',
+        borderWidth: 2,
+        pointBackgroundColor: '#f5576c',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      scales: { r: { min: 0, max: 10, ticks: { stepSize: 2, font: {size:10} }, pointLabels: { font: {size:12} } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // 판정문
+  const vBox = document.getElementById('verdict-box');
+  const vTitle = document.getElementById('verdict-title');
+  const vText = document.getElementById('verdict-text');
+  vBox.className = 'verdict-box';
+
+  const lemGrade = lemgunScore;
+  const godGrade = godsibleScore;
+  const diff = Math.abs(lemGrade - godGrade);
+
+  let title, text, cls;
+
+  if (combinedScore >= 80) {
+    cls = 'great'; title = `✅ ${name} — 우수 입지 (종합 ${combinedScore}점)`;
+    text = `두 분석가 모두 높은 점수를 부여한 우수 입지입니다. `;
+  } else if (combinedScore >= 65) {
+    cls = 'good'; title = `👍 ${name} — 양호한 입지 (종합 ${combinedScore}점)`;
+    text = `전반적으로 양호한 입지이며, 일부 항목 개선 여지가 있습니다. `;
+  } else if (combinedScore >= 50) {
+    cls = 'avg'; title = `⚠️ ${name} — 평균 입지 (종합 ${combinedScore}점)`;
+    text = `입지 조건이 평균 수준입니다. 가격 메리트나 호재가 있는 경우에 한해 검토 가능합니다. `;
+  } else {
+    cls = 'weak'; title = `❌ ${name} — 입지 취약 (종합 ${combinedScore}점)`;
+    text = `입지 조건이 취약합니다. 상당한 가격 할인이나 강력한 개발 호재가 없으면 투자 가치가 낮습니다. `;
+  }
+
+  if (diff > 20) {
+    if (lemGrade > godGrade) {
+      text += `렘군 기준(${lemGrade}점)은 높으나 갓서블 입지 체크리스트(${godGrade}점)에서 부족한 부분이 있습니다. 타이밍은 좋으나 입지 물리적 조건을 보완 확인하세요.`;
+    } else {
+      text += `갓서블 입지 체크리스트(${godGrade}점)는 우수하나 렘군 기준 타이밍 지표(${lemGrade}점)가 낮습니다. 전세가율·공급물량 추이를 재확인하세요.`;
+    }
+  }
+
+  // 취약 항목 추출
+  const allScores = [
+    {name:'전세가율', val:scores.jeonse, threshold:6},
+    {name:'입주물량', val:scores.supply, threshold:5},
+    {name:'역세권', val:Math.max(scores['subway-l'],scores['subway-g']), threshold:5},
+    {name:'브랜드', val:scores.brand, threshold:5},
+    {name:'직주근접', val:Math.max(scores.commute, scores['commute-g']), threshold:5},
+  ];
+  const weak = allScores.filter(s => s.val < s.threshold).map(s => s.name);
+  if (weak.length) text += ` 특히 [${weak.join(', ')}] 항목이 낮습니다.`;
+
+  vBox.classList.add(cls);
+  vTitle.textContent = title;
+  vText.textContent = text;
+
+  document.getElementById('results-card').classList.add('show');
+  document.getElementById('results-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('분석 완료! 결과를 확인하세요 📊');
+
+  // 임장데이터.json에 분석 결과 자동 저장
+  const analysisResult = {
+    lemgunScore, godsibleScore, combinedScore,
+    grade: grade(combinedScore),
+    analysisDate: new Date().toISOString().slice(0,10),
+    scores: { ...scores },
+    note: `렘군 ${lemgunScore}점 / 갓서블 ${godsibleScore}점`
+  };
+
+  if (typeof window._currentImjangIdx !== 'undefined' && _imjangData[window._currentImjangIdx]) {
+    const apt = _imjangData[window._currentImjangIdx];
+    apt.analysis = analysisResult;
+    apt.price = apt.price || document.getElementById('apt-price').value;
+    apt.built = apt.built || document.getElementById('apt-built').value;
+    apt.units = apt.units || document.getElementById('apt-units').value;
+    apt.jeonse = apt.jeonse || document.getElementById('apt-jeonse').value;
+    if (window._saveImjangData) {
+      window._saveImjangData().then(() => {
+        showToast('✅ 임장데이터.json에 분석 결과 저장됨');
+        renderImjangList();
+      });
+    }
+    window._currentImjangIdx = undefined;
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// 초기 점수 표시
+document.querySelectorAll('[id^="s-"]').forEach(el => { el.textContent = '-'; });
+
+// ─── 임장데이터.json 연동 ────────────────────────────────
+let _imjangHandle = null;
+let _imjangData = [];
+
+async function connectImjangFile() {
+  if (!('showOpenFilePicker' in window)) { alert('Chrome 브라우저 필요'); return; }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: '임장 데이터', accept: { 'application/json': ['.json'] } }]
+    });
+    _imjangHandle = handle;
+    const file = await handle.getFile();
+    const text = (await file.text()).trim();
+    _imjangData = (text && text !== '[]') ? JSON.parse(text) : [];
+
+    // 저장 함수 (분석 결과를 JSON에 write back)
+    window._saveImjangData = async function() {
+      if (!_imjangHandle) return;
+      try {
+        const w = await _imjangHandle.createWritable();
+        await w.write(JSON.stringify(_imjangData, null, 2));
+        await w.close();
+      } catch(e) { console.warn('저장 실패', e); }
+    };
+
+    document.getElementById('btn-imjang-connect').textContent = '✅ 연동됨';
+    document.getElementById('btn-imjang-connect').style.background = '#34c759';
+    document.getElementById('imjang-connect-status').textContent = `${_imjangData.length}개 아파트 로드됨`;
+    renderImjangList();
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('연동 실패: ' + e.message);
+  }
+}
+
+function renderImjangList() {
+  const wrap = document.getElementById('imjang-apt-list-wrap');
+  const list = document.getElementById('imjang-apt-list');
+  if (!_imjangData.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = _imjangData.map((apt, i) => {
+    const hasAnalysis = apt.analysis;
+    return `<button class="opt-btn${hasAnalysis ? ' selected' : ''}" onclick="loadFromImjang(${i})" style="font-size:12px;padding:5px 12px">
+      ${apt.name}${hasAnalysis ? ` <span style="font-size:10px">(${apt.analysis.combinedScore}점)</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+function loadFromImjang(idx) {
+  const apt = _imjangData[idx];
+  if (!apt) return;
+  document.getElementById('apt-name').value = apt.name || '';
+  document.getElementById('apt-built').value = apt.built || '';
+  document.getElementById('apt-units').value = apt.units || '';
+  document.getElementById('apt-price').value = apt.price || '';
+  document.getElementById('apt-jeonse').value = apt.jeonse || '';
+  if (apt.units) { document.getElementById('apt-units').dispatchEvent(new Event('input')); }
+  if (apt.built) { document.getElementById('apt-built').dispatchEvent(new Event('input')); }
+  if (apt.jeonse) { document.getElementById('apt-jeonse').dispatchEvent(new Event('input')); }
+
+  // 분석 결과 저장 콜백 등록
+  window._currentImjangIdx = idx;
+
+  setTimeout(() => runAnalysis(), 150);
+}
+
+// 분석 완료 후 임장데이터에 결과 저장
+const _origRunAnalysis = runAnalysis;
+// (runAnalysis 후 저장은 아래 패치에서 처리)
+
+// 프리셋 버튼 렌더
+renderPresetButtons();
+// 첫 번째 프리셋 자동 로드 (가장 최근 분석 결과)
+if (PRESETS.length > 0) loadPreset(0);
+</script>
+</body>
+</html>
