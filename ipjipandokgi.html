@@ -1318,6 +1318,23 @@ const _origRunAnalysis = runAnalysis;
 renderPresetButtons();
 // 첫 번째 프리셋 자동 로드 (가장 최근 분석 결과)
 if (PRESETS.length > 0) loadPreset(0);
+
+// ─── GitHub Pages 자동 로드 ────────────────────────────────
+(async function autoLoad() {
+  if (location.protocol === 'file:') return; // 로컬 파일은 스킵
+  try {
+    const res = await fetch('./imjangdata.json');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return;
+    _imjangData = data;
+    document.getElementById('btn-imjang-connect').textContent = '✅ 자동 로드됨';
+    document.getElementById('btn-imjang-connect').style.background = '#34c759';
+    document.getElementById('imjang-connect-status').textContent = `${data.length}개 아파트 로드됨`;
+    renderImjangList();
+    showToast('📡 임장 목록 자동 로드 완료 (' + data.length + '개)');
+  } catch(e) { /* 파일 없으면 무시 */ }
+})();
 </script>
 </body>
 </html>
