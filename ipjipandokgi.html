@@ -1245,9 +1245,33 @@ function showToast(msg) {
 // 초기 점수 표시
 document.querySelectorAll('[id^="s-"]').forEach(el => { el.textContent = '-'; });
 
-// ─── 임장데이터.json 연동 ────────────────────────────────
+// ─── 임장데이터 동기화 (localStorage 자동 + 파일 선택 선택) ──────
 let _imjangHandle = null;
 let _imjangData = [];
+
+// 저장: localStorage + 파일 핸들 (있으면)
+window._saveImjangData = async function() {
+  localStorage.setItem('imjang_apts', JSON.stringify(_imjangData));
+  if (_imjangHandle) {
+    try {
+      const w = await _imjangHandle.createWritable();
+      await w.write(JSON.stringify(_imjangData, null, 2));
+      await w.close();
+    } catch(e) { console.warn('파일 저장 실패', e); }
+  }
+};
+
+// 임장지도에서 데이터 바뀌면 실시간 반영
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'imjang_apts' || !e.newValue) return;
+  try {
+    const data = JSON.parse(e.newValue);
+    if (!Array.isArray(data)) return;
+    _imjangData = data;
+    renderImjangList();
+    document.getElementById('imjang-connect-status').textContent = `${data.length}개 동기화됨`;
+  } catch(e) {}
+});
 
 async function connectImjangFile() {
   if (!('showOpenFilePicker' in window)) { alert('Chrome 브라우저 필요'); return; }
@@ -1259,17 +1283,7 @@ async function connectImjangFile() {
     const file = await handle.getFile();
     const text = (await file.text()).trim();
     _imjangData = (text && text !== '[]') ? JSON.parse(text) : [];
-
-    // 저장 함수 (분석 결과를 JSON에 write back)
-    window._saveImjangData = async function() {
-      if (!_imjangHandle) return;
-      try {
-        const w = await _imjangHandle.createWritable();
-        await w.write(JSON.stringify(_imjangData, null, 2));
-        await w.close();
-      } catch(e) { console.warn('저장 실패', e); }
-    };
-
+    await window._saveImjangData(); // localStorage에도 즉시 반영
     document.getElementById('btn-imjang-connect').textContent = '✅ 연동됨';
     document.getElementById('btn-imjang-connect').style.background = '#34c759';
     document.getElementById('imjang-connect-status').textContent = `${_imjangData.length}개 아파트 로드됨`;
@@ -1373,18 +1387,35 @@ renderPresetButtons();
 // 첫 번째 프리셋 자동 로드 (가장 최근 분석 결과)
 if (PRESETS.length > 0) loadPreset(0);
 
-// ─── GitHub Pages 자동 로드 ────────────────────────────────
+// ─── 자동 로드: localStorage 우선, 없으면 GitHub Pages fetch ──
 (async function autoLoad() {
-  if (location.protocol === 'file:') return; // 로컬 파일은 스킵
+  // 1. localStorage에 데이터 있으면 즉시 로드 (임장지도와 자동 동기화)
+  const stored = localStorage.getItem('imjang_apts');
+  if (stored) {
+    try {
+      const data = JSON.parse(stored);
+      if (Array.isArray(data) && data.length > 0) {
+        _imjangData = data;
+        document.getElementById('btn-imjang-connect').textContent = '✅ 자동 동기화 중';
+        document.getElementById('btn-imjang-connect').style.background = '#34c759';
+        document.getElementById('imjang-connect-status').textContent = `${data.length}개 자동 동기화 중`;
+        renderImjangList();
+        return;
+      }
+    } catch(e) {}
+  }
+  // 2. localStorage 없으면 GitHub Pages JSON 로드 (첫 방문)
+  if (location.protocol === 'file:') return;
   try {
     const res = await fetch('./imjangdata.json');
     if (!res.ok) return;
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) return;
     _imjangData = data;
-    document.getElementById('btn-imjang-connect').textContent = '✅ 자동 로드됨';
+    localStorage.setItem('imjang_apts', JSON.stringify(data)); // 이후엔 localStorage 사용
+    document.getElementById('btn-imjang-connect').textContent = '✅ 자동 동기화 중';
     document.getElementById('btn-imjang-connect').style.background = '#34c759';
-    document.getElementById('imjang-connect-status').textContent = `${data.length}개 아파트 로드됨`;
+    document.getElementById('imjang-connect-status').textContent = `${data.length}개 자동 동기화 중`;
     renderImjangList();
     showToast('📡 임장 목록 자동 로드 완료 (' + data.length + '개)');
   } catch(e) { /* 파일 없으면 무시 */ }
