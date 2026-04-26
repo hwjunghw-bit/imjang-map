@@ -431,26 +431,11 @@
 <script>
 // ── 초기화 ─────────────────────────────────────────────
 const map = L.map('map').setView([37.3, 127.1], 10);
-// 로컬 파일에서는 CartoDB Voyager (OSM은 Referer 없으면 403 이미지 반환)
-// GitHub Pages에서는 OSM (Referer 있어서 정상 작동, 건물명·상권색 완전 표시)
-const isLocal = location.protocol === 'file:';
-const tileLayer = isLocal
-  ? L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
-      maxZoom: 19,
-      subdomains: 'abcd'
-    }).addTo(map)
-  : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-      crossOrigin: true
-    }).addTo(map);
-
-if (!isLocal) {
-  tileLayer.on('tileerror', function(e) {
-    if (e.tile) e.tile.style.display = 'none';
-  });
-}
+// Esri World Street Map: Referer 체크 없음 → file://·https:// 모두 정상 작동
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
+  maxZoom: 19
+}).addTo(map);
 
 // ── 데이터 저장소 ─────────────────────────────────────────
 // Claude가 데이터를 업데이트할 때는 "Claude 연동"으로 연결된 임장데이터.json을 직접 수정합니다.
