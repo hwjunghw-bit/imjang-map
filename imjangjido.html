@@ -438,42 +438,57 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // ── 데이터 저장소 ─────────────────────────────────────────
-// Claude가 데이터를 업데이트할 때는 "Claude 연동"으로 연결된 임장데이터.json을 직접 수정합니다.
-// 연동 버튼을 누르면 파일↔앱이 양방향으로 동기화됩니다.
-
 let apartments = [];
 let _fileHandle = null;
 
-(function initData() {
-  const stored = JSON.parse(localStorage.getItem('imjang_apts') || '[]');
+const _norm = s => (s || '').toLowerCase().replace(/[\s_\-·]/g, '');
 
-  // 이름 정규화 (공백·특수문자 제거, 소문자)
-  const norm = s => (s || '').toLowerCase().replace(/[\s_\-·]/g, '');
-
-  // 중복 제거: 이름이 같은 항목은 병합 (주관적 데이터는 처음 등장한 항목 우선, 객관적 데이터는 값 있는 것 우선)
+function _mergeApts(base, patch) {
+  // patch(JSON파일)의 분석결과·기본정보를 base(localStorage)에 없는 경우 채워넣기
   const OBJ = ['price','area','units','jeonse','built','subway'];
   const seen = new Map();
-  const merged = [];
+  base.forEach((a, i) => seen.set(_norm(a.name), i));
 
-  stored.forEach(apt => {
-    const key = norm(apt.name);
+  patch.forEach(p => {
+    const key = _norm(p.name);
     if (seen.has(key)) {
-      const base = merged[seen.get(key)];
+      const a = base[seen.get(key)];
       OBJ.forEach(f => {
-        if (apt[f] && apt[f] !== '' && apt[f] !== '0' && (!base[f] || base[f] === '' || base[f] === '0')) {
-          base[f] = apt[f];
-        }
+        if (p[f] && p[f] !== '' && p[f] !== '0' && (!a[f] || a[f] === '' || a[f] === '0')) a[f] = p[f];
       });
-      if (!base.rating && apt.rating) base.rating = apt.rating;
-      if (!base.memo && apt.memo) base.memo = apt.memo;
+      // 분석 결과: JSON 것이 더 최신이거나 localStorage에 없으면 덮어쓰기
+      if (p.analysis && (!a.analysis || p.analysis.analysisDate >= (a.analysis.analysisDate||''))) {
+        a.analysis = p.analysis;
+      }
     } else {
-      seen.set(key, merged.length);
-      merged.push({ ...apt });
+      // localStorage에 없는 항목: JSON에서 추가
+      base.push({ ...p });
+      seen.set(key, base.length - 1);
     }
   });
+  return base;
+}
 
-  apartments = merged;
+(function initData() {
+  const stored = JSON.parse(localStorage.getItem('imjang_apts') || '[]');
+  apartments = stored;
   localStorage.setItem('imjang_apts', JSON.stringify(apartments));
+})();
+
+// JSON 파일에서 분석 데이터 병합 (시작 시 자동)
+(async function syncFromJson() {
+  try {
+    const res = await fetch('./임장데이터.json');
+    if (!res.ok) return;
+    const jsonData = await res.json();
+    if (!Array.isArray(jsonData) || jsonData.length === 0) return;
+    apartments = _mergeApts(apartments, jsonData);
+    localStorage.setItem('imjang_apts', JSON.stringify(apartments));
+    // 마커/사이드바 갱신
+    Object.keys(markers).forEach(id => { if(markers[id]) { markers[id].remove(); delete markers[id]; } });
+    apartments.forEach(createMarker);
+    renderSidebar();
+  } catch(e) { /* JSON 없으면 무시 */ }
 })();
 let markers = {};
 let currentLat = null, currentLng = null, editingId = null;
