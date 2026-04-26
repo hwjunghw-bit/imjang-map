@@ -1307,7 +1307,61 @@ function loadFromImjang(idx) {
   // 분석 결과 저장 콜백 등록
   window._currentImjangIdx = idx;
 
-  setTimeout(() => runAnalysis(), 150);
+  setTimeout(() => {
+    // 저장된 분석 점수 복원 (자동계산 이후 덮어쓰기)
+    if (apt.analysis && apt.analysis.scores) {
+      const s = apt.analysis.scores;
+
+      // 1. scores 객체 및 표시값 일괄 갱신
+      Object.assign(scores, s);
+      Object.entries(s).forEach(([k, v]) => {
+        const sEl = document.getElementById(`s-${k}`);
+        if (sEl) sEl.textContent = v;
+        const rEl = document.getElementById(`r-${k}`);
+        if (rEl) rEl.value = v;
+        const vEl = document.getElementById(`v-${k}`);
+        if (vEl) vEl.textContent = v;
+      });
+
+      // 2. setSliderFromOption 버튼 하이라이트 (supply, value, jeonse, school-l, brand, units-g, age, flat, green, school-g, commute-g, commerce)
+      const optKeys = ['supply','value','jeonse','school-l','brand','units-g','age','flat','green','school-g','commute-g','commerce'];
+      optKeys.forEach(key => {
+        if (s[key] === undefined) return;
+        document.querySelectorAll('.opt-btn').forEach(btn => {
+          const oc = btn.getAttribute('onclick') || '';
+          const m = oc.match(/setSliderFromOption\(['"]([^'"]+)['"]\s*,\s*(-?\d+)/);
+          if (m && m[1] === key && parseInt(m[2]) === s[key]) {
+            btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+          }
+        });
+      });
+
+      // 3. 직주근접 버튼 하이라이트 (점수 → 분 역매핑)
+      if (s['commute'] !== undefined) {
+        const scoreToMin = {10:20, 8:30, 6:40, 4:50, 2:60, 0:90};
+        const targetMin = scoreToMin[s['commute']];
+        if (targetMin) {
+          document.querySelectorAll('.opt-btn').forEach(btn => {
+            const oc = btn.getAttribute('onclick') || '';
+            const m = oc.match(/setCommuteOpt\((\d+)/);
+            if (m && parseInt(m[1]) === targetMin) {
+              btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              document.getElementById('r-commute-min').value = targetMin;
+            }
+          });
+        }
+      }
+
+      // 4. 재건축 섹션 (연식 0점이면 표시)
+      if (s['age'] === 0) {
+        document.getElementById('recon-section').style.display = 'block';
+      }
+    }
+
+    runAnalysis();
+  }, 150);
 }
 
 // 분석 완료 후 임장데이터에 결과 저장
