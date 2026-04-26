@@ -431,9 +431,9 @@
 <script>
 // ── 초기화 ─────────────────────────────────────────────
 const map = L.map('map').setView([37.3, 127.1], 10);
-// Esri World Street Map: Referer 체크 없음 → file://·https:// 모두 정상 작동
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
+// OSM: 로컬은 지도열기.command (http://localhost)로 열면 Referer 있어서 정상 작동
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 19
 }).addTo(map);
 
