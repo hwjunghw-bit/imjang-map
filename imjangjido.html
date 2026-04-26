@@ -942,6 +942,30 @@ document.getElementById('star-rating').addEventListener('change', function(e) {
 document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
+
+// ── 입지판독기 분석 결과 실시간 반영 ────────────────────────
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'imjang_apts' || !e.newValue) return;
+  try {
+    const updated = JSON.parse(e.newValue);
+    if (!Array.isArray(updated)) return;
+    let changed = false;
+    apartments = apartments.map(a => {
+      const match = updated.find(u => u.id === a.id);
+      if (match && JSON.stringify(match.analysis) !== JSON.stringify(a.analysis)) {
+        changed = true;
+        return { ...a, analysis: match.analysis };
+      }
+      return a;
+    });
+    if (changed) {
+      // saveAll() 호출 안 함 (루프 방지) — 화면만 갱신
+      Object.keys(markers).forEach(id => { markers[id].remove(); delete markers[id]; });
+      apartments.forEach(createMarker);
+      renderSidebar();
+    }
+  } catch(e) {}
+});
 </script>
 </body>
 </html>
