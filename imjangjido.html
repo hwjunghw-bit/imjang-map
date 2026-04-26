@@ -431,16 +431,11 @@
 <script>
 // ── 초기화 ─────────────────────────────────────────────
 const map = L.map('map').setView([37.3, 127.1], 10);
-const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
   maxZoom: 19,
-  crossOrigin: true
+  subdomains: 'abcd'
 }).addTo(map);
-
-// 타일 로드 실패 시 에러 타일 숨김 (403 오버레이 방지)
-tileLayer.on('tileerror', function(e) {
-  if (e.tile) e.tile.style.display = 'none';
-});
 
 // ── 데이터 저장소 ─────────────────────────────────────────
 // Claude가 데이터를 업데이트할 때는 "Claude 연동"으로 연결된 임장데이터.json을 직접 수정합니다.
