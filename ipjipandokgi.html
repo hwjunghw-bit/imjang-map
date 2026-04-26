@@ -208,11 +208,6 @@ header h1 span { color: #e94560; }
       <div style="font-size:12px;font-weight:700;color:#636366;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">📋 임장 목록에서 선택</div>
       <div id="imjang-apt-list" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
-    <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:#636366;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">💾 Claude 분석 기록</div>
-      <div id="preset-wrap" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-      <div id="preset-note" style="font-size:12px;color:#8892b0;margin-top:6px;line-height:1.6"></div>
-    </div>
     <div class="apt-input-row">
       <div class="apt-field" style="flex:2;min-width:200px">
         <label>단지명 *</label>
@@ -235,6 +230,7 @@ header h1 span { color: #e94560; }
         <input type="number" id="apt-jeonse" placeholder="예) 62" min="0" max="100" />
       </div>
       <button class="btn-analyze" onclick="runAnalysis()">📊 입지 분석</button>
+      <button class="btn-analyze" onclick="saveCurrentApt()" style="background:linear-gradient(135deg,#34c759,#28a745);margin-left:6px">💾 저장</button>
     </div>
   </div>
 
@@ -762,63 +758,6 @@ header h1 span { color: #e94560; }
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── Claude 분석 프리셋 데이터 ──────────────────────────────
-const PRESETS = [
-  {
-    meta: { name: "수원역 센트럴 어반 시티", built: "2015", units: "1019", price: "56800", jeonse: "58" },
-    note: "시공사: (주)삼호 | 수원역(1호선+수인분당선) 도보 약 15분 | 세류동 평지 | 수원역 상권(AK플라자·롯데몰) 도보권",
-    scores: {
-      jeonse: 4, supply: 5, value: 5, commute: 4, "subway-l": 3, "school-l": 4,
-      "subway-g": 3, brand: 3, "units-g": 6, age: 5, flat: 8,
-      green: 4, "school-g": 4, "commute-g": 4, commerce: 7,
-      reconBonus: 0
-    },
-    subwayState: { dist: 15, line: "mid" },
-    subwayStateG: { dist: 15, line: "mid" }
-  }
-];
-
-function loadPreset(idx) {
-  const p = PRESETS[idx];
-  if (!p) return;
-
-  // 기본 정보
-  document.getElementById('apt-name').value = p.meta.name;
-  document.getElementById('apt-built').value = p.meta.built;
-  document.getElementById('apt-units').value = p.meta.units;
-  document.getElementById('apt-price').value = p.meta.price;
-  document.getElementById('apt-jeonse').value = p.meta.jeonse;
-
-  // 점수 반영
-  Object.assign(scores, p.scores);
-  Object.assign(subwayState, p.subwayState);
-  Object.assign(subwayStateG, p.subwayStateG);
-
-  // 표시 업데이트
-  Object.entries(p.scores).forEach(([k, v]) => {
-    const el = document.getElementById(`s-${k}`);
-    if (el) el.textContent = v;
-    const inp = document.getElementById(`r-${k}`);
-    if (inp) inp.value = v;
-  });
-  document.getElementById('age-auto-note').style.display = 'block';
-  document.getElementById('units-auto-note').style.display = 'block';
-
-  // 자동 분석 실행
-  setTimeout(() => {
-    runAnalysis();
-    const note = document.getElementById('preset-note');
-    if (note) note.textContent = '📌 ' + p.note;
-  }, 100);
-}
-
-function renderPresetButtons() {
-  const wrap = document.getElementById('preset-wrap');
-  if (!wrap) return;
-  wrap.innerHTML = PRESETS.map((p, i) =>
-    `<button class="opt-btn selected" onclick="loadPreset(${i})" style="font-size:13px;padding:7px 14px">📂 ${p.meta.name}</button>`
-  ).join('');
-}
 
 // ─── 점수 상태 ────────────────────────────────────────────
 const scores = {
@@ -1221,10 +1160,10 @@ function runAnalysis() {
   if (typeof window._currentImjangIdx !== 'undefined' && _imjangData[window._currentImjangIdx]) {
     const apt = _imjangData[window._currentImjangIdx];
     apt.analysis = analysisResult;
-    apt.price = apt.price || document.getElementById('apt-price').value;
-    apt.built = apt.built || document.getElementById('apt-built').value;
-    apt.units = apt.units || document.getElementById('apt-units').value;
-    apt.jeonse = apt.jeonse || document.getElementById('apt-jeonse').value;
+    apt.price  = document.getElementById('apt-price').value  || apt.price;
+    apt.built  = document.getElementById('apt-built').value  || apt.built;
+    apt.units  = document.getElementById('apt-units').value  || apt.units;
+    apt.jeonse = document.getElementById('apt-jeonse').value || apt.jeonse;
     if (window._saveImjangData) {
       window._saveImjangData().then(() => {
         showToast('✅ 임장데이터.json에 분석 결과 저장됨');
@@ -1232,6 +1171,23 @@ function runAnalysis() {
       });
     }
     window._currentImjangIdx = undefined;
+  }
+}
+
+function saveCurrentApt() {
+  if (typeof window._currentImjangIdx === 'undefined' || !_imjangData[window._currentImjangIdx]) {
+    showToast('⚠️ 임장 목록에서 아파트를 먼저 선택하세요');
+    return;
+  }
+  const apt = _imjangData[window._currentImjangIdx];
+  apt.name   = document.getElementById('apt-name').value   || apt.name;
+  apt.price  = document.getElementById('apt-price').value  || apt.price;
+  apt.area   = document.getElementById('apt-area') ? document.getElementById('apt-area').value || apt.area : apt.area;
+  apt.built  = document.getElementById('apt-built').value  || apt.built;
+  apt.units  = document.getElementById('apt-units').value  || apt.units;
+  apt.jeonse = document.getElementById('apt-jeonse').value || apt.jeonse;
+  if (window._saveImjangData) {
+    window._saveImjangData().then(() => showToast('✅ 저장됨'));
   }
 }
 
@@ -1383,9 +1339,6 @@ const _origRunAnalysis = runAnalysis;
 // (runAnalysis 후 저장은 아래 패치에서 처리)
 
 // 프리셋 버튼 렌더
-renderPresetButtons();
-// 첫 번째 프리셋 자동 로드 (가장 최근 분석 결과)
-if (PRESETS.length > 0) loadPreset(0);
 
 // ─── 자동 로드: localStorage 우선, 없으면 GitHub Pages fetch ──
 (async function autoLoad() {
