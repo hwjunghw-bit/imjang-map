@@ -476,7 +476,7 @@
         "commerce": 7,
         "reconBonus": 0
       },
-      "note": "렘군 57점(C) / 갓서블 57점(C) — 3,391세대 대단지·전세가율 65% 강점, 역세권 약함·연식 18년"
+      "note": "렘군 57점 / 갓서블 57점"
     }
   },
   {
@@ -529,7 +529,7 @@
         "commerce": 7,
         "reconBonus": 0
       },
-      "note": "렘군 42점(D) / 갓서블 39점(D) — 역세권 없음·연식 24년·중소건설사 약점, 학세권·상권 무난"
+      "note": "렘군 42점 / 갓서블 39점"
     }
   },
   {
@@ -552,7 +552,7 @@
       "godsibleScore": 45,
       "combinedScore": 42,
       "grade": "✕ D등급",
-      "analysisDate": "2026-04-25",
+      "analysisDate": "2026-04-26",
       "scores": {
         "jeonse": 2,
         "supply": 5,
