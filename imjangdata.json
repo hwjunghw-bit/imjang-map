@@ -573,5 +573,58 @@
       },
       "note": "렘군 39점 / 갓서블 45점"
     }
+  },
+  {
+    "id": "수원시청역_SK뷰",
+    "lat": 37.2608,
+    "lng": 127.0182,
+    "name": "수원시청역 SK뷰",
+    "price": "65000",
+    "area": "84",
+    "jeonse": "62",
+    "subway": "1",
+    "commercial": 4,
+    "manage": 3,
+    "school": 1,
+    "news": "",
+    "memo": "",
+    "rating": 0,
+    "built": "2008",
+    "units": "1018",
+    "visitDate": "",
+    "timeOfDay": "",
+    "noise": 3,
+    "safety": 3,
+    "spacing": 3,
+    "landscape": 3,
+    "hill": "없음",
+    "road": "보통",
+    "nuisance": "",
+    "analysis": {
+      "lemgunScore": 47,
+      "godsibleScore": 55,
+      "combinedScore": 51,
+      "grade": "△ C등급",
+      "analysisDate": "2026-04-27",
+      "scores": {
+        "jeonse": 5,
+        "supply": 5,
+        "value": 5,
+        "commute": 2,
+        "subway-l": 9,
+        "school-l": 1,
+        "subway-g": 9,
+        "brand": 6,
+        "units-g": 6,
+        "age": 3,
+        "flat": 10,
+        "green": 5,
+        "school-g": 1,
+        "commute-g": 0,
+        "commerce": 7,
+        "reconBonus": 0
+      },
+      "note": "렘군 47점(D) / 갓서블 55점(C) — 수인분당선 초역세권(도보 1분) 최대 강점, 강남 60분 직주근접·학군 약점"
+    }
   }
 ]
