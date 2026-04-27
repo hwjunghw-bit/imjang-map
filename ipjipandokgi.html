@@ -180,6 +180,12 @@ header h1 span { color: #e94560; }
 .recon-toggle:hover { color: #e94560; }
 .recon-content { margin-top: 12px; display: none; }
 .recon-content.open { display: block; }
+
+/* 빠트 패널 */
+.score-box.ppatra { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.keyword.green { background: #11998e; }
+.ppatra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 700px) { .ppatra-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -187,7 +193,7 @@ header h1 span { color: #e94560; }
 <header>
   <div>
     <h1>🏢 아파트 입지 <span>판독기</span></h1>
-    <div class="header-sub">푸릉·렘군·갓서블 기준 종합 분석</div>
+    <div class="header-sub">푸릉·렘군·갓서블·빠트 기준 종합 분석</div>
   </div>
   <div style="font-size:12px;color:#8892b0;text-align:right">
     <div>브역대신평공초 · 전세가율 · 타이밍</div>
@@ -659,6 +665,215 @@ header h1 span { color: #e94560; }
         <input type="hidden" id="r-commerce" value="5" />
       </div>
     </div>
+
+    <!-- 빠트(@aptlab) 패널 (전체 너비) -->
+    <div class="panel" style="grid-column:1/-1">
+      <div class="panel-header">
+        <div class="panel-icon">🐦</div>
+        <div>
+          <div class="panel-title">빠트 (@aptlab) 기준</div>
+          <div class="panel-sub">실전 투자 10가지 체크리스트 · X(트위터) 부동산 인플루언서</div>
+        </div>
+      </div>
+      <div class="ppatra-grid">
+
+        <!-- pp1: 500세대 이상 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">🏘️ 500세대 이상</div>
+              <div class="criterion-desc">최소 500세대 이상 단지. 관리비·커뮤니티·환금성 확보.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 5%</div>
+              <div class="criterion-score-display" id="s-pp1">-</div>
+            </div>
+          </div>
+          <div id="pp1-auto-note" style="font-size:12px;color:#007aff;margin-bottom:6px;display:none">세대수 자동 적용됨</div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp1',10,this)">500세대+</button>
+            <button class="opt-btn" onclick="setPpOpt('pp1',0,this)">500세대 미만</button>
+          </div>
+        </div>
+
+        <!-- pp2: 4층 이상 탑층 제외 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">🏢 4층 이상 · 탑층 제외</div>
+              <div class="criterion-desc">저층·탑층은 일조·소음·방수 리스크. 4층~최고층-1 권장.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 5%</div>
+              <div class="criterion-score-display" id="s-pp2">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp2',10,this)">4층↑ 탑층 아님</button>
+            <button class="opt-btn" onclick="setPpOpt('pp2',0,this)">저층 또는 탑층</button>
+          </div>
+        </div>
+
+        <!-- pp3: 21년 전고점 대비 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">📉 21년 전고점 대비 현재가</div>
+              <div class="criterion-desc">21년 고점 대비 현재 가격 수준. 고점 아래일수록 반등 여력 높음.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 20%</div>
+              <div class="criterion-score-display" id="s-pp3">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp3',10,this)">고점 대비 20%↓</button>
+            <button class="opt-btn" onclick="setPpOpt('pp3',8,this)">고점 대비 10%↓</button>
+            <button class="opt-btn" onclick="setPpOpt('pp3',6,this)">고점 근접 (±5%)</button>
+            <button class="opt-btn" onclick="setPpOpt('pp3',3,this)">고점 초과</button>
+            <button class="opt-btn" onclick="setPpOpt('pp3',5,this)">확인 불가</button>
+          </div>
+        </div>
+
+        <!-- pp4: 23년 이후 가격 상승 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">📈 23년 하락기 이후 회복</div>
+              <div class="criterion-desc">23년 저점 이후 실질 거래가 상승 여부. 하방 지지력 확인.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 15%</div>
+              <div class="criterion-score-display" id="s-pp4">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp4',10,this)">상승 중</button>
+            <button class="opt-btn" onclick="setPpOpt('pp4',5,this)">횡보</button>
+            <button class="opt-btn" onclick="setPpOpt('pp4',0,this)">하락 지속</button>
+          </div>
+        </div>
+
+        <!-- pp5: 주변 신축과 환경·학군 공유 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">🏗️ 주변 신축과 환경·학군 공유</div>
+              <div class="criterion-desc">인근 신축 단지와 학군·공원·인프라를 공유하면 구축도 신축 효과.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 10%</div>
+              <div class="criterion-score-display" id="s-pp5">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp5',10,this)">인근 신축과 공유</button>
+            <button class="opt-btn" onclick="setPpOpt('pp5',5,this)">일부 공유</button>
+            <button class="opt-btn" onclick="setPpOpt('pp5',0,this)">독립 구역</button>
+          </div>
+        </div>
+
+        <!-- pp6: 최근 2달 5건+ 거래 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">📊 최근 1~2달 거래 5건+</div>
+              <div class="criterion-desc">실거래 활성도. 최근 2달 내 5건 이상이면 실수요 확인 완료.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 10%</div>
+              <div class="criterion-score-display" id="s-pp6">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp6',10,this)">5건+</button>
+            <button class="opt-btn" onclick="setPpOpt('pp6',5,this)">3~4건</button>
+            <button class="opt-btn" onclick="setPpOpt('pp6',2,this)">1~2건</button>
+            <button class="opt-btn" onclick="setPpOpt('pp6',0,this)">거래 없음</button>
+          </div>
+        </div>
+
+        <!-- pp7: 전세가격 2년 상승 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">🔑 전세가격 최근 2년 상승</div>
+              <div class="criterion-desc">실수요 기반 전세 수요 확인. 2년 전세 상승 = 실거주 인기 지역.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 10%</div>
+              <div class="criterion-score-display" id="s-pp7">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp7',10,this)">상승 중</button>
+            <button class="opt-btn" onclick="setPpOpt('pp7',5,this)">횡보</button>
+            <button class="opt-btn" onclick="setPpOpt('pp7',0,this)">하락</button>
+          </div>
+        </div>
+
+        <!-- pp8: 신혼부부 선호 -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">💍 신혼부부 선호 지역</div>
+              <div class="criterion-desc">신혼 수요 = 안정적 실수요. 학군·직주근접·공원 환경 종합.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 10%</div>
+              <div class="criterion-score-display" id="s-pp8">-</div>
+            </div>
+          </div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp8',10,this)">매우 선호</button>
+            <button class="opt-btn" onclick="setPpOpt('pp8',6,this)">보통</button>
+            <button class="opt-btn" onclick="setPpOpt('pp8',2,this)">비선호</button>
+          </div>
+        </div>
+
+        <!-- pp9: 업무지구 접근 (직주근접 자동 연동) -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">🚇 업무지구 대중교통 접근</div>
+              <div class="criterion-desc">강남·여의도·마포 등 30분 내 접근. 렘군 직주근접 입력값 자동 연동.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 10%</div>
+              <div class="criterion-score-display" id="s-pp9">-</div>
+            </div>
+          </div>
+          <div id="pp9-auto-note" style="font-size:12px;color:#007aff;margin-bottom:6px;display:none">직주근접 입력값 자동 연동됨</div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp9',10,this)">30분↓</button>
+            <button class="opt-btn" onclick="setPpOpt('pp9',7,this)">40분↓</button>
+            <button class="opt-btn" onclick="setPpOpt('pp9',4,this)">60분↓</button>
+            <button class="opt-btn" onclick="setPpOpt('pp9',0,this)">60분+</button>
+          </div>
+        </div>
+
+        <!-- pp10: 전세가율 55~60% (전세가율 자동 연동) -->
+        <div class="criterion">
+          <div class="criterion-header">
+            <div>
+              <div class="criterion-label">📋 전세가율 55~60% 이내</div>
+              <div class="criterion-desc">빠트 안전마진 기준. 55~60% = 실수요+갭투자 모두 안전 구간.</div>
+            </div>
+            <div style="text-align:right">
+              <div class="criterion-weight">가중치 5%</div>
+              <div class="criterion-score-display" id="s-pp10">-</div>
+            </div>
+          </div>
+          <div id="pp10-auto-note" style="font-size:12px;color:#007aff;margin-bottom:6px;display:none">전세가율 자동 적용됨</div>
+          <div class="option-group">
+            <button class="opt-btn" onclick="setPpOpt('pp10',10,this)">55~60%</button>
+            <button class="opt-btn" onclick="setPpOpt('pp10',6,this)">50~55% 또는 60~65%</button>
+            <button class="opt-btn" onclick="setPpOpt('pp10',2,this)">그 외</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 
   <!-- 분석 결과 -->
@@ -679,6 +894,11 @@ header h1 span { color: #e94560; }
         <div><span class="score-num" id="res-godsible-score">-</span><span class="score-num-max">/100</span></div>
         <div class="score-grade" id="res-godsible-grade">-</div>
       </div>
+      <div class="score-box ppatra">
+        <div class="score-label">빠트 점수</div>
+        <div><span class="score-num" id="res-ppatra-score">-</span><span class="score-num-max">/100</span></div>
+        <div class="score-grade" id="res-ppatra-grade">-</div>
+      </div>
       <div class="score-box combined">
         <div class="score-label">종합 점수</div>
         <div><span class="score-num" id="res-combined-score">-</span><span class="score-num-max">/100</span></div>
@@ -694,6 +914,10 @@ header h1 span { color: #e94560; }
       <div class="chart-wrap">
         <div class="chart-title">갓서블 — 브역대신평공초</div>
         <canvas id="chart-godsible"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">빠트 — 10가지 체크리스트</div>
+        <canvas id="chart-ppatra"></canvas>
       </div>
     </div>
 
@@ -738,9 +962,24 @@ header h1 span { color: #e94560; }
         </div>
       </div>
       <div class="analyst-card">
+        <div class="analyst-name">🐦 빠트 (@aptlab)</div>
+        <div class="analyst-philosophy">
+          "숫자가 증명하는 곳에 투자하라." 21년 전고점 대비 가격 수준·23년 이후 회복 여부·전세 상승을 핵심 필터로 삼는 실전형 체크리스트. 신혼부부 수요·거래량·직주근접을 함께 검증해 수요 안전성을 확인.
+        </div>
+        <div class="keyword-list">
+          <span class="keyword green">전고점 대비 20%</span>
+          <span class="keyword green">23년 이후 회복 15%</span>
+          <span class="keyword green">신축공유 10%</span>
+          <span class="keyword green">거래량 10%</span>
+          <span class="keyword green">전세상승 10%</span>
+          <span class="keyword green">신혼선호 10%</span>
+          <span class="keyword green">직주 10%</span>
+        </div>
+      </div>
+      <div class="analyst-card">
         <div class="analyst-name">🔑 공통 핵심 포인트</div>
         <div class="analyst-philosophy">
-          두 분석가 모두 강조하는 절대 기준들. 이것만 충족해도 하방경직성은 확보.
+          세 분석가 모두 강조하는 절대 기준들. 이것만 충족해도 하방경직성은 확보.
         </div>
         <div class="keyword-list">
           <span class="keyword teal">직주근접 30분내</span>
@@ -767,7 +1006,10 @@ const scores = {
   'subway-g': 5, brand: 5, 'units-g': 5, age: 5, flat: 5,
   green: 5, 'school-g': 5, 'commute-g': 5, commerce: 5,
   // 재건축 보정
-  reconBonus: 0
+  reconBonus: 0,
+  // 빠트(@aptlab)
+  pp1: 5, pp2: 5, pp3: 5, pp4: 5, pp5: 5,
+  pp6: 5, pp7: 5, pp8: 5, pp9: 5, pp10: 5
 };
 
 const WEIGHTS_LEMGUN = {
@@ -803,6 +1045,15 @@ function setSliderFromOption(key, val, btn) {
   } else if (key === 'age') {
     document.getElementById('recon-section').style.display = 'none';
   }
+}
+
+// 빠트 체크리스트 버튼 선택
+function setPpOpt(key, val, btn) {
+  scores[key] = val;
+  const sEl = document.getElementById(`s-${key}`);
+  if (sEl) sEl.textContent = val;
+  btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
 }
 
 // 역세권 점수 계산 (렘군)
@@ -852,6 +1103,13 @@ function calcCommuteScore() {
   scores['commute'] = score;
   document.getElementById('r-commute').value = score;
   document.getElementById('s-commute').textContent = score;
+  // pp9 자동 연동 (빠트: 업무지구 접근)
+  const pp9Score = min <= 30 ? 10 : min <= 40 ? 7 : min <= 60 ? 4 : 0;
+  scores.pp9 = pp9Score;
+  const pp9El = document.getElementById('s-pp9');
+  if (pp9El) pp9El.textContent = pp9Score;
+  const pp9Note = document.getElementById('pp9-auto-note');
+  if (pp9Note) pp9Note.style.display = 'block';
 }
 
 // 재건축 점수
@@ -910,6 +1168,16 @@ document.getElementById('apt-jeonse').addEventListener('input', function() {
   document.getElementById('v-jeonse').textContent = score;
   document.getElementById('s-jeonse').textContent = score;
   document.querySelectorAll('#cr-jeonse-rate .opt-btn').forEach(b => b.classList.remove('selected'));
+  // pp10 자동 연동 (빠트: 전세가율 55~60%)
+  let pp10Score;
+  if (v >= 55 && v <= 60) pp10Score = 10;
+  else if ((v >= 50 && v < 55) || (v > 60 && v <= 65)) pp10Score = 6;
+  else pp10Score = 2;
+  scores.pp10 = pp10Score;
+  const pp10El = document.getElementById('s-pp10');
+  if (pp10El) pp10El.textContent = pp10Score;
+  const pp10Note = document.getElementById('pp10-auto-note');
+  if (pp10Note) pp10Note.style.display = 'block';
 });
 
 // 준공년도 자동 연식 점수
@@ -949,10 +1217,17 @@ document.getElementById('apt-units').addEventListener('input', function() {
   document.getElementById('s-units-g').textContent = score;
   document.getElementById('units-auto-note').style.display = 'block';
   document.querySelectorAll('#r-units-g ~ .option-group .opt-btn').forEach(b => b.classList.remove('selected'));
+  // pp1 자동 연동 (빠트: 500세대 이상)
+  const pp1Score = u >= 500 ? 10 : 0;
+  scores.pp1 = pp1Score;
+  const pp1El = document.getElementById('s-pp1');
+  if (pp1El) pp1El.textContent = pp1Score;
+  const pp1Note = document.getElementById('pp1-auto-note');
+  if (pp1Note) pp1Note.style.display = 'block';
 });
 
 // ─── 분석 실행 ───────────────────────────────────────────
-let chartL = null, chartG = null;
+let chartL = null, chartG = null, chartP = null;
 
 function runAnalysis() {
   const name = document.getElementById('apt-name').value.trim();
@@ -988,7 +1263,22 @@ function runAnalysis() {
   );
   const godsibleScore = Math.round(godsibleRaw * 10);
 
-  const combinedScore = Math.round((lemgunScore + godsibleScore) / 2);
+  // 빠트 점수
+  const ppatraRaw = (
+    scores.pp1  * 0.05 +
+    scores.pp2  * 0.05 +
+    scores.pp3  * 0.20 +
+    scores.pp4  * 0.15 +
+    scores.pp5  * 0.10 +
+    scores.pp6  * 0.10 +
+    scores.pp7  * 0.10 +
+    scores.pp8  * 0.10 +
+    scores.pp9  * 0.10 +
+    scores.pp10 * 0.05
+  );
+  const ppatraScore = Math.round(ppatraRaw * 10);
+
+  const combinedScore = Math.round((lemgunScore + godsibleScore + ppatraScore) / 3);
 
   // 등급
   const grade = s => s >= 85 ? '★★★ S등급' : s >= 75 ? '★★☆ A등급' : s >= 60 ? '★☆☆ B등급' : s >= 45 ? '△ C등급' : '✕ D등급';
@@ -1012,6 +1302,8 @@ function runAnalysis() {
   document.getElementById('res-lemgun-grade').textContent = grade(lemgunScore);
   document.getElementById('res-godsible-score').textContent = godsibleScore;
   document.getElementById('res-godsible-grade').textContent = grade(godsibleScore);
+  document.getElementById('res-ppatra-score').textContent = ppatraScore;
+  document.getElementById('res-ppatra-grade').textContent = grade(ppatraScore);
   document.getElementById('res-combined-score').textContent = combinedScore;
   document.getElementById('res-combined-grade').textContent = grade(combinedScore);
 
@@ -1033,6 +1325,16 @@ function runAnalysis() {
     ['갓서블', '직주근접', scores['commute-g'], (scores['commute-g']*0.08).toFixed(1)],
     ['갓서블', '평지·경사도', scores.flat, (scores.flat*0.08).toFixed(1)],
     ['갓서블', '상권·인프라', scores.commerce, (scores.commerce*0.05).toFixed(1)],
+    ['빠트', '500세대 이상', scores.pp1, (scores.pp1*0.05).toFixed(1)],
+    ['빠트', '4층↑탑층제외', scores.pp2, (scores.pp2*0.05).toFixed(1)],
+    ['빠트', '21년 전고점 대비', scores.pp3, (scores.pp3*0.20).toFixed(1)],
+    ['빠트', '23년 이후 회복', scores.pp4, (scores.pp4*0.15).toFixed(1)],
+    ['빠트', '신축 환경·학군 공유', scores.pp5, (scores.pp5*0.10).toFixed(1)],
+    ['빠트', '최근 2달 5건+ 거래', scores.pp6, (scores.pp6*0.10).toFixed(1)],
+    ['빠트', '전세가격 2년 상승', scores.pp7, (scores.pp7*0.10).toFixed(1)],
+    ['빠트', '신혼부부 선호', scores.pp8, (scores.pp8*0.10).toFixed(1)],
+    ['빠트', '업무지구 대중교통 접근', scores.pp9, (scores.pp9*0.10).toFixed(1)],
+    ['빠트', '전세가율 55~60%', scores.pp10, (scores.pp10*0.05).toFixed(1)],
   ];
 
   const table = document.getElementById('detail-table');
@@ -1095,6 +1397,28 @@ function runAnalysis() {
     }
   });
 
+  // 레이더 차트 - 빠트
+  if (chartP) chartP.destroy();
+  chartP = new Chart(document.getElementById('chart-ppatra'), {
+    type: 'radar',
+    data: {
+      labels: ['500세대', '층수', '전고점', '23회복', '신축공유', '거래량', '전세상승', '신혼선호', '직주', '전세가율'],
+      datasets: [{
+        label: name,
+        data: [scores.pp1, scores.pp2, scores.pp3, scores.pp4, scores.pp5, scores.pp6, scores.pp7, scores.pp8, scores.pp9, scores.pp10],
+        backgroundColor: 'rgba(17,153,142,0.2)',
+        borderColor: '#11998e',
+        borderWidth: 2,
+        pointBackgroundColor: '#11998e',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      scales: { r: { min: 0, max: 10, ticks: { stepSize: 2, font: {size:10} }, pointLabels: { font: {size:11} } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
   // 판정문
   const vBox = document.getElementById('verdict-box');
   const vTitle = document.getElementById('verdict-title');
@@ -1150,11 +1474,11 @@ function runAnalysis() {
 
   // 임장데이터.json에 분석 결과 자동 저장
   const analysisResult = {
-    lemgunScore, godsibleScore, combinedScore,
+    lemgunScore, godsibleScore, ppatraScore, combinedScore,
     grade: grade(combinedScore),
     analysisDate: new Date().toISOString().slice(0,10),
     scores: { ...scores },
-    note: `렘군 ${lemgunScore}점 / 갓서블 ${godsibleScore}점`
+    note: `렘군 ${lemgunScore}점 / 갓서블 ${godsibleScore}점 / 빠트 ${ppatraScore}점`
   };
 
   if (typeof window._currentImjangIdx !== 'undefined' && _imjangData[window._currentImjangIdx]) {
@@ -1256,7 +1580,7 @@ function renderImjangList() {
   list.innerHTML = _imjangData.map((apt, i) => {
     const hasAnalysis = apt.analysis;
     return `<button class="opt-btn${hasAnalysis ? ' selected' : ''}" onclick="loadFromImjang(${i})" style="font-size:12px;padding:5px 12px">
-      ${apt.name}${hasAnalysis ? ` <span style="font-size:10px">(${apt.analysis.combinedScore}점)</span>` : ''}
+      ${apt.name}${hasAnalysis ? ` <span style="font-size:10px">(종합 ${apt.analysis.combinedScore}점)</span>` : ''}
     </button>`;
   }).join('');
 }
@@ -1293,7 +1617,7 @@ function loadFromImjang(idx) {
       });
 
       // 2. setSliderFromOption 버튼 하이라이트 (supply, value, jeonse, school-l, brand, units-g, age, flat, green, school-g, commute-g, commerce)
-      const optKeys = ['supply','value','jeonse','school-l','brand','units-g','age','flat','green','school-g','commute-g','commerce'];
+      const optKeys = ['supply','value','jeonse','school-l','brand','units-g','age','flat','green','school-g','commute-g','commerce','pp1','pp2','pp3','pp4','pp5','pp6','pp7','pp8','pp9','pp10'];
       optKeys.forEach(key => {
         if (s[key] === undefined) return;
         document.querySelectorAll('.opt-btn').forEach(btn => {
