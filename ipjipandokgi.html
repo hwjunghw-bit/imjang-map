@@ -1166,11 +1166,10 @@ function runAnalysis() {
     apt.jeonse = document.getElementById('apt-jeonse').value || apt.jeonse;
     if (window._saveImjangData) {
       window._saveImjangData().then(() => {
-        showToast('✅ 임장데이터.json에 분석 결과 저장됨');
+        showToast('✅ 저장됨');
         renderImjangList();
       });
     }
-    window._currentImjangIdx = undefined;
   }
 }
 
